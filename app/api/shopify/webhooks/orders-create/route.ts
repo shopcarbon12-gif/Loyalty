@@ -35,6 +35,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_json" }, { status: 400 });
   }
 
+  // Live kill-switch — when OFF we 200 Shopify (no retry) but write nothing.
+  const settings = await getSettings();
+  if (!settings.live) {
+    return NextResponse.json({ ok: true, skipped: "live_off" });
+  }
+
   // Skip our own POS push so we don't double-count.
   if (order.source_name === "carbon-pos") {
     return NextResponse.json({ ok: true, skipped: "pos_origin" });
@@ -54,7 +60,7 @@ export async function POST(req: Request) {
   // No POS customer linked yet — we still record the event keyed only on
   // the GID so we can back-fill the link later.
 
-  const eligible = computeEligible(order, await getSettings());
+  const eligible = computeEligible(order, settings);
   const points = await pointsForEligible(eligible);
   const sourceRef = order.admin_graphql_api_id; // gid://shopify/Order/123
 

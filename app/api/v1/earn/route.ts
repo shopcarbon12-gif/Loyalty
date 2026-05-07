@@ -52,8 +52,19 @@ export async function POST(req: Request) {
     return NextResponse.json(cached.body, { status: cached.status });
   }
 
-  const points = await pointsForEligible(data.eligible_amount);
   const settings = await getSettings();
+  // Live kill-switch. When OFF the program is paused — POS keeps queuing
+  // outbox rows, the drain succeeds (200), but no ledger rows are written.
+  // Flip live=true at /admin/settings to start awarding.
+  if (!settings.live) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "live_off",
+      points_awarded: 0,
+    });
+  }
+
+  const points = await pointsForEligible(data.eligible_amount);
   const sourceRef = `pos:sale:${data.sale_id}`;
   const requestHash = JSON.stringify({
     customer_id: data.customer_id,

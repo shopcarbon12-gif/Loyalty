@@ -51,6 +51,16 @@ export async function POST(req: Request) {
   }
 
   const s = await getSettings();
+  // Live kill-switch — see earn/route.ts. POS UI hides the redeem control
+  // when balance is 0 anyway; this is a defence-in-depth gate.
+  if (!s.live) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "live_off",
+      points_redeemed: 0,
+      dollars_off: 0,
+    });
+  }
   if (data.points < s.min_redeem_points) {
     return NextResponse.json(
       { error: "below_minimum", message: `Minimum redemption is ${s.min_redeem_points} points.` },

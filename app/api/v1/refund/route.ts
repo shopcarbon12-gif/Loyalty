@@ -8,6 +8,7 @@ import {
   recordIdempotency,
   withTransaction,
 } from "@/lib/loyalty";
+import { getSettings } from "@/lib/settings";
 
 const schema = z.object({
   idempotency_key: z.string().min(8).max(128),
@@ -47,6 +48,15 @@ export async function POST(req: Request) {
   const cached = await lookupIdempotency(data.idempotency_key);
   if (cached) {
     return NextResponse.json(cached.body, { status: cached.status });
+  }
+
+  // Live kill-switch — refunds while paused are no-ops. If a sale earned
+  // points BEFORE the program was paused, refunding it AFTER would leave
+  // the customer with un-clawed-back points; that's an acceptable edge
+  // case for a soft-pause and the back office can adjust manually.
+  const settings = await getSettings();
+  if (!settings.live) {
+    return NextResponse.json({ skipped: true, reason: "live_off", reversed: [] });
   }
 
   const pct = data.refund_pct ?? 1;

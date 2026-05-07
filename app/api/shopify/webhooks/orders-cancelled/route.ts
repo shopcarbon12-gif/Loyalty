@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
 import { insertLedger, withTransaction } from "@/lib/loyalty";
+import { getSettings } from "@/lib/settings";
 
 /**
  * POST /api/shopify/webhooks/orders-cancelled
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
   }
   const orderGid = order.admin_graphql_api_id;
   if (!orderGid) return NextResponse.json({ ok: true, skipped: "no_gid" });
+
+  const settings = await getSettings();
+  if (!settings.live) return NextResponse.json({ ok: true, skipped: "live_off" });
 
   const orig = await getPool().query<{
     id: string;

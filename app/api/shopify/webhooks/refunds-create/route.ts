@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
 import { insertLedger, withTransaction } from "@/lib/loyalty";
+import { getSettings } from "@/lib/settings";
 
 /**
  * POST /api/shopify/webhooks/refunds-create
@@ -35,6 +36,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_json" }, { status: 400 });
   }
   if (!body.order_id) return NextResponse.json({ ok: true, skipped: "no_order_id" });
+  const settings = await getSettings();
+  if (!settings.live) return NextResponse.json({ ok: true, skipped: "live_off" });
   const orderGid = `gid://shopify/Order/${body.order_id}`;
   const refundGid = body.admin_graphql_api_id ?? `shopify:refund:${body.order_id}:${Date.now()}`;
 
