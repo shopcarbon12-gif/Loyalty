@@ -34,6 +34,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=5100
+# Standalone server.js reads HOSTNAME from env. Without this it binds
+# to the container's internal hostname only (e.g. b3ba1f42719b) and the
+# docker healthcheck can't reach it via localhost.
+ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs \
   && apk add --no-cache libc6-compat postgresql-client su-exec curl
