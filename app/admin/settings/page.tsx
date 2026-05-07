@@ -31,8 +31,10 @@ export default async function SettingsPage() {
               signup_bonus_points          = $10,
               birthday_bonus_points        = $11,
               referral_reward_points       = $12,
-              points_never_expire          = $13,
-              live                         = $14,
+              referee_earns_points         = $13,
+              referral_min_purchase        = $14,
+              points_never_expire          = $15,
+              live                         = $16,
               updated_at                   = now()
         WHERE id = 1`,
       [
@@ -48,6 +50,8 @@ export default async function SettingsPage() {
         num("signup_bonus_points"),
         num("birthday_bonus_points"),
         num("referral_reward_points"),
+        num("referee_earns_points"),
+        num("referral_min_purchase"),
         bool("points_never_expire"),
         bool("live"),
       ],
@@ -92,8 +96,14 @@ export default async function SettingsPage() {
                    type="number" defaultValue={settings.signup_bonus_points} />
             <Field label="Birthday bonus (pts)" name="birthday_bonus_points"
                    type="number" defaultValue={settings.birthday_bonus_points} />
-            <Field label="Referral reward (pts)" name="referral_reward_points"
+          </Group>
+          <Group title="Referrals">
+            <Field label="Referrer earns (pts)" name="referral_reward_points"
                    type="number" defaultValue={settings.referral_reward_points} />
+            <Field label="Referee earns (pts)" name="referee_earns_points"
+                   type="number" defaultValue={settings.referee_earns_points} />
+            <Field label="Min qualifying purchase ($)" name="referral_min_purchase"
+                   type="number" step="0.01" defaultValue={settings.referral_min_purchase} />
           </Group>
           <Group title="Lifetime">
             <Toggle label="Points never expire" name="points_never_expire"

@@ -13,16 +13,18 @@ export function AdminShell({
   title,
   children,
 }: {
-  active: "dashboard" | "settings" | "ledger" | "customers" | "comms";
+  active: "dashboard" | "settings" | "ledger" | "customers" | "tiers" | "referrals" | "comms";
   title?: string;
   children: React.ReactNode;
 }) {
   const NAV = [
-    { key: "dashboard", icon: "dashboard", href: "/admin", label: "Dashboard" },
-    { key: "settings",  icon: "settings",  href: "/admin/settings", label: "Settings" },
-    { key: "ledger",    icon: "list",      href: "/admin/ledger", label: "Ledger" },
-    { key: "customers", icon: "people",    href: "/admin/customers", label: "Customers" },
-    { key: "comms",     icon: "mail",      href: "/admin/comms", label: "Communications" },
+    { key: "dashboard", icon: "dashboard",      href: "/admin", label: "Dashboard" },
+    { key: "customers", icon: "people",         href: "/admin/customers", label: "Customers" },
+    { key: "ledger",    icon: "list",           href: "/admin/ledger", label: "Transactions" },
+    { key: "tiers",     icon: "stars",          href: "/admin/tiers", label: "Tiers" },
+    { key: "referrals", icon: "share",          href: "/admin/referrals", label: "Referrals" },
+    { key: "comms",     icon: "mail",           href: "/admin/comms", label: "Communications" },
+    { key: "settings",  icon: "settings",       href: "/admin/settings", label: "Rules & Settings" },
   ] as const;
   return (
     <div className="min-h-screen bg-[var(--carbon-bg)] text-[var(--carbon-text)]">

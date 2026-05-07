@@ -12,7 +12,11 @@ export type LoyaltySettings = {
   allow_stacking_with_codes: boolean;
   signup_bonus_points: number;
   birthday_bonus_points: number;
-  referral_reward_points: number;
+  referral_reward_points: number;     // referrer's reward
+  referee_earns_points: number;       // referee's reward — added in migration 002
+  referral_min_purchase: number;      // qualifying-purchase floor
+  tier_batch_hour_est: number;
+  tier_qualifying_metric: "amount" | "points" | "visits";
   points_never_expire: boolean;
   metafield_namespace: string;
   metafield_key: string;
@@ -23,9 +27,7 @@ let _cache: { value: LoyaltySettings; expires: number } | null = null;
 const TTL_MS = 30_000;
 
 /**
- * Fetches the singleton loyalty_settings row. Cached 30s in-process; the
- * admin Settings page invalidates by writing a new row (we just let the
- * cache expire since updates happen rarely).
+ * Fetches the singleton loyalty_settings row. Cached 30s in-process.
  */
 export async function getSettings(): Promise<LoyaltySettings> {
   if (_cache && _cache.expires > Date.now()) return _cache.value;
@@ -43,6 +45,10 @@ export async function getSettings(): Promise<LoyaltySettings> {
             signup_bonus_points,
             birthday_bonus_points,
             referral_reward_points,
+            referee_earns_points,
+            referral_min_purchase::float8      AS referral_min_purchase,
+            tier_batch_hour_est,
+            tier_qualifying_metric,
             points_never_expire,
             metafield_namespace,
             metafield_key,
