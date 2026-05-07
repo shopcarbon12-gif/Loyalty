@@ -4,6 +4,8 @@ import { getPool } from "@/lib/db";
 import { getSettings, clearSettingsCache } from "@/lib/settings";
 import { AdminShell } from "@/components/AdminShell";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Admin → Settings — the rules for the program. Server action saves
  * straight to the loyalty_settings row and busts the in-process cache.

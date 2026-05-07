@@ -2,6 +2,11 @@ import { getPool } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { AdminShell } from "@/components/AdminShell";
 
+// Render at request time. Static export would try to query the loyalty
+// schema during the build container's life — but the migration runs at
+// container start, AFTER the build has already shipped.
+export const dynamic = "force-dynamic";
+
 /**
  * Admin dashboard — top-level numbers Kangaroo's portal also surfaces:
  *   total members · points outstanding · points redeemed · top reward.

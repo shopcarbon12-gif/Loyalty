@@ -1,6 +1,8 @@
 import { getPool } from "@/lib/db";
 import { AdminShell } from "@/components/AdminShell";
 
+export const dynamic = "force-dynamic";
+
 const PAGE_SIZE = 50;
 
 /**
