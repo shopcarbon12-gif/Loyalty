@@ -94,10 +94,15 @@ export default async function CustomersPage({
   return (
     <AdminShell active="customers">
       <section className="p-8 max-w-7xl">
-        <p className="text-sm text-[var(--carbon-muted)] mb-4">
-          Every <code>pos_customers</code> row joined to <code>loyalty_balance</code>.
-          {" "}Click a row for the full ledger and to award/redeem.
-        </p>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <p className="text-sm text-[var(--carbon-muted)]">
+            Every <code>pos_customers</code> row joined to <code>loyalty_balance</code>.
+            {" "}Click a row for the full ledger and to award/redeem.
+          </p>
+          <Link href="/admin/customers/import" className="carbon-btn-primary whitespace-nowrap">
+            ⇪ Import CSV
+          </Link>
+        </div>
 
         <form className="flex flex-wrap gap-2 items-end mb-4">
           <label className="flex flex-col gap-1 flex-1 min-w-[260px]">
