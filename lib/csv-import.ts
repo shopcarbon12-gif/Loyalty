@@ -168,9 +168,21 @@ function normBirthday(s: string): string {
  * (Kangaroo's default sync key); fall back to email-only or phone-only
  * matches if both aren't present. Insert when no match.
  */
+export type ImportOpts = {
+  creditBalance: boolean;
+  sourceTag: string;
+  /** Stamps created_via on new rows. Defaults to wms_csv. */
+  createdVia?: "wms_csv" | "wms_manual" | "admin";
+  /** UUID of the WMS / admin user running the import (for created_by_user_id). */
+  actedByUserId?: string | null;
+  /** Optional pos_location_id stamp for created_at_location. NULL by default
+   *  because CSV imports aren't tied to a physical store. */
+  createdAtLocationId?: number | null;
+};
+
 export async function importRows(
   rows: ParsedRow[],
-  opts: { creditBalance: boolean; sourceTag: string },
+  opts: ImportOpts,
 ): Promise<ImportSummary> {
   const summary: ImportSummary = {
     total: rows.length,
@@ -215,7 +227,7 @@ function identityLabel(r: ParsedRow): string {
 async function upsertOne(
   client: PoolClient,
   row: ParsedRow,
-  opts: { creditBalance: boolean; sourceTag: string },
+  opts: ImportOpts,
 ): Promise<RowOutcome> {
   if (!row.email && !row.phone) {
     return {
@@ -283,10 +295,20 @@ async function upsertOne(
   } else {
     const ins = await client.query<{ id: number }>(
       `INSERT INTO pos_customers
-         (first_name, last_name, email, mobile_phone, birthday, created_at)
-       VALUES ($1, $2, $3, $4, $5::date, now())
+         (first_name, last_name, email, mobile_phone, birthday,
+          created_by_user_id, pos_location_id, created_via, created_at)
+       VALUES ($1, $2, $3, $4, $5::date, $6, $7, $8, now())
        RETURNING id`,
-      [row.first_name, row.last_name, row.email, row.phone, row.birthday],
+      [
+        row.first_name,
+        row.last_name,
+        row.email,
+        row.phone,
+        row.birthday,
+        opts.actedByUserId ?? null,
+        opts.createdAtLocationId ?? null,
+        opts.createdVia ?? "wms_csv",
+      ],
     );
     customerId = ins.rows[0].id;
     status = "created";

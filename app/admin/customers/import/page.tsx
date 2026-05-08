@@ -64,6 +64,9 @@ export default async function ImportPage({
     const summary = await importRows(rows, {
       creditBalance: !!p.credit,
       sourceTag: p.tag ?? "import",
+      createdVia: "admin",
+      actedByUserId: null,
+      createdAtLocationId: null,
     });
     c.delete("loyalty_import_preview");
     c.set("loyalty_import_summary", JSON.stringify(summary), {
@@ -92,11 +95,16 @@ export default async function ImportPage({
         </Link>
         <h1 className="text-2xl font-bold mt-3 mb-3">Import customers from CSV</h1>
         <p className="text-sm text-[var(--carbon-muted)] mb-6">
-          Paste a CSV export (Kangaroo dashboard export, Shopify customers
-          export, or any spreadsheet). Match by email + phone, then fall back
-          to either alone. Re-running the same file is safe — matched rows
-          update missing fields, the unique <code>(source, source_ref)</code>{" "}
-          index on the ledger keeps balance migrations from double-crediting.
+          Paste any customer CSV (Shopify export, vendor list, event
+          signup sheet, or any spreadsheet). Match by email + phone,
+          then fall back to either alone. Re-running the same file is
+          safe — matched rows update missing fields; the unique{" "}
+          <code>(source, source_ref)</code> index on the ledger keeps
+          balance migrations from double-crediting.
+        </p>
+        <p className="text-xs text-[var(--carbon-muted)] mb-6 italic">
+          Customer-ops normally happens in WMS Members. This admin route
+          stays for emergencies / break-glass.
         </p>
 
         <div className="carbon-card p-5 mb-4">
@@ -128,10 +136,10 @@ export default async function ImportPage({
               </span>
               <input
                 name="source_tag"
-                defaultValue="kangaroo"
+                defaultValue="import"
                 maxLength={32}
                 className="carbon-input"
-                placeholder="kangaroo / shopify / manual"
+                placeholder="shopify / vendor-list / event-signup / etc."
               />
               <span className="text-[11px] text-[var(--carbon-muted)]">
                 Stamped onto the ledger source_ref so re-imports dedupe.

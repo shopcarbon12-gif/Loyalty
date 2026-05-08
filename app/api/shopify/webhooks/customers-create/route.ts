@@ -58,11 +58,15 @@ export async function POST(req: Request) {
           [gid, customerId],
         );
       } else {
+        // Build "City, ST" from Shopify shipping/default address so the
+        // member shows up in WMS with real geo provenance instead of "—".
+        const geo = formatGeo(c.default_address);
         const ins = await client.query<{ id: number }>(
           `INSERT INTO pos_customers
              (first_name, last_name, email, mobile_phone, birthday,
-              shopify_customer_gid, shopify_linked_at, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+              shopify_customer_gid, shopify_linked_at,
+              created_via, created_at_geo, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, now(), 'shopify', $7, now())
            RETURNING id`,
           [
             c.first_name ?? null,
@@ -71,6 +75,7 @@ export async function POST(req: Request) {
             c.phone ?? null,
             null, // Shopify customer payload doesn't carry birthdate by default
             gid,
+            geo,
           ],
         );
         customerId = ins.rows[0].id;
@@ -106,4 +111,23 @@ type ShopifyCustomer = {
   last_name?: string | null;
   email?: string | null;
   phone?: string | null;
+  default_address?: {
+    city?: string | null;
+    province?: string | null;
+    province_code?: string | null;
+    country_code?: string | null;
+  } | null;
 };
+
+/**
+ * "City, ST" or "City" or "ST" — never an empty trailing comma. Returns
+ * null if neither field is present so the column stays NULL instead of
+ * ", " junk.
+ */
+function formatGeo(addr: ShopifyCustomer["default_address"]): string | null {
+  if (!addr) return null;
+  const city = (addr.city ?? "").trim();
+  const state = (addr.province_code ?? addr.province ?? "").trim();
+  if (city && state) return `${city}, ${state}`;
+  return city || state || null;
+}
