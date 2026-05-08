@@ -30,9 +30,17 @@ export function AdminShell({
     <div className="min-h-screen bg-[var(--carbon-bg)] text-[var(--carbon-text)]">
       <aside className="carbon-sidebar fixed left-0 top-0 h-screen flex flex-col py-8 px-3 z-40">
         <Link href="/admin" className="mb-10 px-3 flex items-end gap-3">
-          <span className="w-12 h-12 bg-black flex items-center justify-center text-white font-bold">L</span>
+          {/* Same /logo.jpg lockup as Carbon-POS so the two services share
+              identity. Falls back to a colored tile if the asset is missing
+              so the chrome doesn't break before the file lands. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.jpg"
+            alt="Carbon"
+            className="w-24 h-24 object-cover shrink-0"
+          />
           <span className="carbon-wordmark text-2xl font-semibold tracking-tight leading-none pb-1">
-            CarbonLoyalty
+            Carbon <b className="font-extrabold tracking-wider">LOYALTY</b>
           </span>
         </Link>
         <nav className="flex-1 flex flex-col gap-1">
