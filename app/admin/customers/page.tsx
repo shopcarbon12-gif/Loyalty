@@ -97,14 +97,19 @@ export default async function CustomersPage({
               pc.created_via,
               pc.created_at_geo,
               -- "Where the customer was added": prefer the canonical
-              -- WMS location name, fall back to the POS location's city
-              -- (always populated for POS-created customers), then
-              -- pos_location_id as a last resort so the cell never
-              -- shows just "Store" with nothing under it.
+              -- WMS location name, then the POS location's city, then
+              -- the raw pc.pos_location_id (not pl.id — pl can be NULL
+              -- when the pos_locations row went missing but the FK is
+              -- still set). If pos_location_id is also NULL, surface a
+              -- visible flag so the data gap is fixable.
               COALESCE(
                 l.name,
                 NULLIF(pl.city, ''),
-                CASE WHEN pl.id IS NOT NULL THEN 'Location #' || pl.id ELSE NULL END
+                CASE
+                  WHEN pc.pos_location_id IS NOT NULL THEN 'Location #' || pc.pos_location_id
+                  WHEN pc.created_via = 'pos'         THEN 'location not recorded'
+                  ELSE NULL
+                END
               ) AS pos_location_name,
               u.email AS created_by_email,
               pc.created_at::text AS created_at
