@@ -77,3 +77,17 @@ body { font-family: var(--font-sans); }
 }
 
 .carbon-wordmark { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+/* Login keypad — opt-in circle (everything else stays sharp). */
+.pin-dot { border-radius: 9999px !important; }
+
+/* Touch targets used by the sign-in screen. */
+.tap    { min-height: 56px; }
+.tap-lg { min-height: 72px; }
+
+/* Ghost button — transparent with hover wash. */
+.carbon-btn-ghost {
+  background: transparent; color: var(--carbon-text);
+  border: 1px solid transparent;
+}
+.carbon-btn-ghost:hover { background: var(--carbon-surface-soft); }

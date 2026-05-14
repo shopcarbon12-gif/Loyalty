@@ -22,8 +22,12 @@ export default async function AdminHome() {
         WHERE customer_id IS NOT NULL`,
     ),
     pool.query<{ awarded: string; redeemed: string; refunded: string }>(
+      // Manual back-office adjustments (reason='manual', reason='adjustment')
+      // are intentionally excluded from both KPIs: they're staff overrides,
+      // not organic earn/redeem activity, and including them would let a
+      // single goodwill bump distort the program's headline numbers.
       `SELECT
-         COALESCE(SUM(CASE WHEN delta_points > 0 AND reason IN ('sale','signup_bonus','birthday_bonus','referral_bonus','manual')
+         COALESCE(SUM(CASE WHEN delta_points > 0 AND reason IN ('sale','signup_bonus','birthday_bonus','referral_bonus')
                             THEN delta_points ELSE 0 END), 0)::text AS awarded,
          COALESCE(SUM(CASE WHEN reason = 'redemption' THEN -delta_points ELSE 0 END), 0)::text AS redeemed,
          COALESCE(SUM(CASE WHEN reason = 'refund' THEN delta_points ELSE 0 END), 0)::text AS refunded
@@ -54,7 +58,7 @@ export default async function AdminHome() {
             <li>Welcome bonus: <b>{settings.signup_bonus_points} pts</b></li>
             <li>Birthday bonus: <b>{settings.birthday_bonus_points} pts</b></li>
             <li>Referral reward: <b>{settings.referral_reward_points} pts</b></li>
-            <li>Coupon expiry: <b>{settings.coupon_ttl_hours} h</b> · stacking with codes: <b>{settings.allow_stacking_with_codes ? "ON" : "OFF"}</b></li>
+            <li>Stacking with discount codes: <b>{settings.allow_stacking_with_codes ? "ON" : "OFF"}</b></li>
             <li>Points expire: <b>{settings.points_never_expire ? "Never" : "(time-bound)"}</b></li>
           </ul>
         </div>

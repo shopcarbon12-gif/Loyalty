@@ -97,7 +97,7 @@ export default async function CustomersPage({
         <div className="flex items-start justify-between gap-4 mb-4">
           <p className="text-sm text-[var(--carbon-muted)]">
             Every <code>pos_customers</code> row joined to <code>loyalty_balance</code>.
-            {" "}Click a row for the full ledger and to award/redeem.
+            {" "}Click a row for the full ledger and to reward or adjust points.
           </p>
           <Link href="/admin/customers/import" className="carbon-btn-primary whitespace-nowrap">
             ⇪ Import CSV

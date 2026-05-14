@@ -18,6 +18,9 @@ export default async function SettingsPage() {
     const num = (k: string) => Number(formData.get(k) ?? 0);
     const bool = (k: string) => formData.get(k) === "on";
     await getPool().query(
+      // coupon_ttl_hours is intentionally not written: the online-store
+      // redemption flow that mints expiring Shopify discount codes isn't
+      // built yet, so the field is hidden from the UI.
       `UPDATE loyalty_settings
           SET earn_rate_per_dollar         = $1,
               exclude_tax                  = $2,
@@ -26,15 +29,14 @@ export default async function SettingsPage() {
               min_redeem_points            = $5,
               redeem_increment_points      = $6,
               max_redeem_pct_of_order      = $7,
-              coupon_ttl_hours             = $8,
-              allow_stacking_with_codes    = $9,
-              signup_bonus_points          = $10,
-              birthday_bonus_points        = $11,
-              referral_reward_points       = $12,
-              referee_earns_points         = $13,
-              referral_min_purchase        = $14,
-              points_never_expire          = $15,
-              live                         = $16,
+              allow_stacking_with_codes    = $8,
+              signup_bonus_points          = $9,
+              birthday_bonus_points        = $10,
+              referral_reward_points       = $11,
+              referee_earns_points         = $12,
+              referral_min_purchase        = $13,
+              points_never_expire          = $14,
+              live                         = $15,
               updated_at                   = now()
         WHERE id = 1`,
       [
@@ -45,7 +47,6 @@ export default async function SettingsPage() {
         num("min_redeem_points"),
         num("redeem_increment_points"),
         num("max_redeem_pct_of_order"),
-        num("coupon_ttl_hours"),
         bool("allow_stacking_with_codes"),
         num("signup_bonus_points"),
         num("birthday_bonus_points"),
@@ -86,8 +87,6 @@ export default async function SettingsPage() {
                    type="number" defaultValue={settings.redeem_increment_points} />
             <Field label="Max % of order subtotal" name="max_redeem_pct_of_order"
                    type="number" defaultValue={settings.max_redeem_pct_of_order} />
-            <Field label="Coupon TTL (hours)" name="coupon_ttl_hours"
-                   type="number" defaultValue={settings.coupon_ttl_hours} />
             <Toggle label="Allow stacking with other discount codes" name="allow_stacking_with_codes"
                     defaultChecked={settings.allow_stacking_with_codes} />
           </Group>

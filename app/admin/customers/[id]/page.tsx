@@ -29,13 +29,17 @@ type LedgerRow = {
   source_ref: string | null;
   amount_basis: string | null;
   created_at: string;
+  pos_location_name: string | null;
+  pos_location_code: string | null;
 };
 
 /**
  * Admin → Customer detail. Mirrors the Kangaroo merchant-portal customer
- * page: profile + balance + tier progress + transactions + actions to
- * reward / redeem / recalc tier. All writes go through `insertLedger` so
- * the unique (source, source_ref) index keeps double-clicks idempotent.
+ * page: profile + balance + tier progress + transactions + manager-only
+ * actions to reward or adjust points. Both write reason='manual' so they
+ * stay out of the organic earn/redeem KPIs. All writes go through
+ * `insertLedger` so the unique (source, source_ref) index keeps
+ * double-clicks idempotent.
  */
 export default async function CustomerDetail({
   params,
@@ -69,11 +73,22 @@ export default async function CustomerDetail({
       [customerId],
     ),
     pool.query<LedgerRow>(
-      `SELECT id::text, delta_points, reason, source, source_ref,
-              amount_basis::text, created_at
-         FROM loyalty_ledger
-        WHERE customer_id = $1
-        ORDER BY created_at DESC
+      // For source='pos', the source_ref encodes the pos_sales.id. Resolve
+      // the originating location via pos_sales → pos_locations → WMS
+      // locations so the UI can show "<code> · <name>" instead of "pos".
+      `SELECT ll.id::text, ll.delta_points, ll.reason, ll.source, ll.source_ref,
+              ll.amount_basis::text, ll.created_at,
+              l.name AS pos_location_name,
+              l.code AS pos_location_code
+         FROM loyalty_ledger ll
+         LEFT JOIN pos_sales     ps
+           ON ll.source = 'pos'
+          AND ll.source_ref IN ('pos:sale:' || ps.id::text,
+                                'pos:redeem:' || ps.id::text)
+         LEFT JOIN pos_locations pl ON pl.id = ps.pos_location_id
+         LEFT JOIN locations     l  ON l.id  = pl.wms_location_id
+        WHERE ll.customer_id = $1
+        ORDER BY ll.created_at DESC
         LIMIT 100`,
       [customerId],
     ),
@@ -100,46 +115,46 @@ export default async function CustomerDetail({
     .sort((a, b) => b.qualifying_points - a.qualifying_points)[0];
   const nextTier = tiers.find((t) => t.qualifying_points > life);
 
-  // Server actions for reward / redeem -------------------------------------
+  // Server actions for manual overrides ------------------------------------
+  // Both actions stamp reason='manual' so they're excluded from the
+  // organic earn/redeem KPIs on the dashboard. They are manager-only
+  // adjustments, not customer activity.
   async function rewardAction(formData: FormData) {
     "use server";
-    const amount = Number(formData.get("amount") ?? 0);
+    const pts = Number(formData.get("points") ?? 0);
     const note = String(formData.get("note") ?? "").trim().slice(0, 60);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    const settings = await getSettings();
-    const pts = Math.floor(amount * settings.earn_rate_per_dollar);
-    if (pts <= 0) return;
+    if (!Number.isFinite(pts) || pts <= 0) return;
     await withTransaction((client) =>
       insertLedger(client, {
         customer_id: customerId,
         shopify_gid: null,
-        delta_points: pts,
+        delta_points: Math.floor(pts),
         reason: "manual",
         source: "admin",
         source_ref: `admin:reward:${Date.now()}:${note || "manual"}`,
-        amount_basis: amount,
+        amount_basis: null,
       }),
     );
     revalidatePath(`/admin/customers/${customerId}`);
     redirect(`/admin/customers/${customerId}`);
   }
 
-  async function redeemAction(formData: FormData) {
+  async function adjustAction(formData: FormData) {
     "use server";
-    const points = Number(formData.get("points") ?? 0);
-    if (!Number.isFinite(points) || points <= 0) return;
-    const settings = await getSettings();
-    if (points < settings.min_redeem_points) return;
-    if (points % settings.redeem_increment_points !== 0) return;
+    // Signed integer: positive adds, negative deducts. Manager override —
+    // not subject to redeem min/increment rules.
+    const delta = Number(formData.get("points") ?? 0);
+    const note = String(formData.get("note") ?? "").trim().slice(0, 60);
+    if (!Number.isFinite(delta) || delta === 0) return;
     await withTransaction((client) =>
       insertLedger(client, {
         customer_id: customerId,
         shopify_gid: null,
-        delta_points: -points,
-        reason: "redemption",
+        delta_points: Math.trunc(delta),
+        reason: "manual",
         source: "admin",
-        source_ref: `admin:redeem:${Date.now()}`,
-        amount_basis: points / settings.redeem_points_per_dollar,
+        source_ref: `admin:adjust:${Date.now()}:${note || "manual"}`,
+        amount_basis: null,
       }),
     );
     revalidatePath(`/admin/customers/${customerId}`);
@@ -231,7 +246,11 @@ export default async function CustomerDetail({
                           {row.delta_points}
                         </td>
                         <td className="px-3 py-2">{row.reason}</td>
-                        <td className="px-3 py-2">{row.source}</td>
+                        <td className="px-3 py-2">
+                          {row.source === "pos" && row.pos_location_code
+                            ? `${row.pos_location_code} · ${row.pos_location_name ?? ""}`
+                            : row.source}
+                        </td>
                         <td className="px-3 py-2 font-mono text-xs">{row.source_ref ?? "—"}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           {row.amount_basis ? `$${Number(row.amount_basis).toFixed(2)}` : "—"}
@@ -248,12 +267,12 @@ export default async function CustomerDetail({
             <div className="carbon-card p-5">
               <h2 className="text-base font-bold mb-3">＋ Reward points</h2>
               <p className="text-xs text-[var(--carbon-muted)] mb-3">
-                Awards <code>floor(amount × {settings.earn_rate_per_dollar})</code> points.
+                Manager override · adds points directly to this customer.
               </p>
               <form action={rewardAction} className="space-y-3">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Amount ($)</span>
-                  <input type="number" step="0.01" min="0" name="amount" required className="carbon-input" placeholder="40.00" />
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Points</span>
+                  <input type="number" step="1" min="1" name="points" required className="carbon-input" placeholder="100" />
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Note (optional)</span>
@@ -264,29 +283,29 @@ export default async function CustomerDetail({
             </div>
 
             <div className="carbon-card p-5">
-              <h2 className="text-base font-bold mb-3">− Redeem points</h2>
+              <h2 className="text-base font-bold mb-3">⇄ Adjust points</h2>
               <p className="text-xs text-[var(--carbon-muted)] mb-3">
-                In <code>{settings.redeem_increment_points}</code>-pt steps · min{" "}
-                <code>{settings.min_redeem_points}</code>.
+                Manager override · positive adds, negative deducts. Bypasses
+                redemption rules.
               </p>
-              <form action={redeemAction} className="space-y-3">
+              <form action={adjustAction} className="space-y-3">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Points to redeem</span>
-                  <select name="points" className="carbon-input" defaultValue={settings.min_redeem_points}>
-                    {[1, 2, 3, 4, 5].map((n) => {
-                      const pts = settings.redeem_increment_points * n;
-                      const dol = (pts / settings.redeem_points_per_dollar).toFixed(2);
-                      return (
-                        <option key={pts} value={pts} disabled={pts > bal}>
-                          {pts} pts → ${dol} {pts > bal ? "(insufficient)" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Points (±)</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="-?[0-9]+"
+                    name="points"
+                    required
+                    className="carbon-input"
+                    placeholder="-100"
+                  />
                 </label>
-                <button type="submit" className="carbon-btn-secondary w-full" disabled={bal < settings.min_redeem_points}>
-                  {bal < settings.min_redeem_points ? "Balance below minimum" : "Issue redemption"}
-                </button>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Note (optional)</span>
+                  <input type="text" name="note" maxLength={60} className="carbon-input" placeholder="Reason / reference" />
+                </label>
+                <button type="submit" className="carbon-btn-secondary w-full">Apply adjustment</button>
               </form>
             </div>
 
