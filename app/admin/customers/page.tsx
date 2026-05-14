@@ -72,7 +72,6 @@ export default async function CustomersPage({
   const countSql = `SELECT COUNT(*)::text AS n
                       FROM pos_customers pc
                       LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
-                      LEFT JOIN pos_locations  pl ON pl.id = pc.pos_location_id
                       ${whereSql}`;
 
   const listArgs = [...args, PAGE_SIZE, offset];
@@ -95,10 +94,12 @@ export default async function CustomersPage({
               pc.shopify_customer_gid,
               pc.created_via,
               pc.created_at_geo,
-              pl.name AS pos_location_name
+              -- pos_locations holds no name; resolve via wms-owned locations
+              l.name AS pos_location_name
          FROM pos_customers pc
          LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
          LEFT JOIN pos_locations  pl ON pl.id = pc.pos_location_id
+         LEFT JOIN locations      l  ON l.id  = pl.wms_location_id
          ${whereSql}
         ORDER BY COALESCE(lb.balance, 0) DESC, pc.last_name NULLS LAST, pc.first_name
         LIMIT $${limitIdx}::int OFFSET $${offsetIdx}::int`,
