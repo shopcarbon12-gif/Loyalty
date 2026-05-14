@@ -4,7 +4,7 @@ Dedicated loyalty service. Replaces Kangaroo Rewards. Hosts the points
 ledger, the back-office admin UI, the Shopify integration (webhooks +
 app-proxy + Theme App Extension), and the transactional sender.
 
-Lives at **`loyalty.shopcarbon.com`**. Talks to the same Postgres as
+Lives at **`rewards.shopcarbon.com`**. Talks to the same Postgres as
 Carbon-POS and CarbonWMS.
 
 ## Run locally
@@ -21,7 +21,7 @@ npm run dev                     # http://localhost:5100
 ## Deploy (Coolify, manual one-time setup)
 
 1. New Coolify application, Dockerfile build, name `Carbon-Loyalty`.
-2. Domain: `loyalty.shopcarbon.com` — point DNS A record at the same
+2. Domain: `rewards.shopcarbon.com` — point DNS A record at the same
    server IP as `pos.shopcarbon.com`. Coolify Traefik handles routing.
 3. Environment variables:
    - `DATABASE_URL` — `postgres://postgres:…@iogw84scwo0owsco8c8wg4s0:5432/postgres`
@@ -33,7 +33,7 @@ npm run dev                     # http://localhost:5100
    - `SHOPIFY_API_SECRET` — Shopify app secret (verifies webhooks +
      app-proxy signatures).
    - `NEXTAUTH_SECRET` — `openssl rand -base64 32`.
-   - `NEXTAUTH_URL` — `https://loyalty.shopcarbon.com`.
+   - `NEXTAUTH_URL` — `https://rewards.shopcarbon.com`.
    - `RESEND_API_KEY` — same as POS for transactional email.
 4. Set `EXPOSE` / `PORT` to 5100 in Coolify's port settings; rewrite
    `custom_labels` so Traefik serves on 5100 (same gotcha as POS — see
@@ -46,7 +46,7 @@ npm run dev                     # http://localhost:5100
 In Coolify's `Carbon-POS` app, add:
 
 ```
-LOYALTY_API_BASE_URL=https://loyalty.shopcarbon.com
+LOYALTY_API_BASE_URL=https://rewards.shopcarbon.com
 LOYALTY_API_KEY=<same value as Carbon-Loyalty>
 LOYALTY_OUTBOX_DRAIN_KEY=<random hex>
 ```

@@ -8,7 +8,7 @@ import { dollarsForPoints, getBalance } from "@/lib/loyalty";
  *
  * Shopify app proxy. The storefront widget calls
  * shopcarbon.com/apps/loyalty/balance, Shopify rewrites it to
- * loyalty.shopcarbon.com/apps/loyalty/balance with a `signature` query
+ * rewards.shopcarbon.com/apps/loyalty/balance with a `signature` query
  * param + a `logged_in_customer_id` (Shopify customer numeric ID, NOT
  * a GID).
  *

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * Bare-bones AdminShell for loyalty.shopcarbon.com. Same Carbon look as
+ * Bare-bones AdminShell for rewards.shopcarbon.com. Same Carbon look as
  * Carbon-POS — sidebar + topbar + main column.
  *
  * For B0/B1 we don't gate the UI with a NextAuth session (the service
@@ -57,7 +57,7 @@ export function AdminShell({
         </nav>
         <div className="border-t border-[var(--carbon-border-soft)] pt-4 mt-4 px-4">
           <p className="text-xs text-[var(--carbon-muted)]">Carbon-Loyalty</p>
-          <p className="text-xs text-[var(--carbon-muted)]">loyalty.shopcarbon.com</p>
+          <p className="text-xs text-[var(--carbon-muted)]">rewards.shopcarbon.com</p>
         </div>
       </aside>
       <div

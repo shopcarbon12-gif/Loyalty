@@ -25,7 +25,7 @@ export function verifyWebhookHmac(rawBody: string, hmacHeader: string | null): b
 
 /**
  * Verify an app-proxy request's signature. Shopify rewrites
- * shopcarbon.com/apps/loyalty/X → loyalty.shopcarbon.com/X with a
+ * shopcarbon.com/apps/loyalty/X → rewards.shopcarbon.com/X with a
  * `signature` query param computed over the OTHER query params sorted
  * lexicographically and concatenated as key=value pairs (no separator).
  *

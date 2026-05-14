@@ -20,7 +20,7 @@ Or via the web UI:
 2. `git -C /home/carbondev/dev/Carbon-Loyalty remote add origin git@github.com:shopcarbon12-gif/Carbon-Loyalty.git`
 3. `git -C /home/carbondev/dev/Carbon-Loyalty push -u origin main`
 
-## 2. Add DNS for `loyalty.shopcarbon.com`
+## 2. Add DNS for `rewards.shopcarbon.com`
 
 Wherever shopcarbon.com's DNS is hosted (Cloudflare / Route 53 / etc):
 
@@ -45,7 +45,7 @@ In the Coolify UI on `178.156.136.112:8000`:
 2. **Build pack: Dockerfile** (we ship `Dockerfile` in the repo root).
 3. **Project: CARBON-POS** (uuid `gog4ww04so4ogsg0wcgg8koc`) — same project as Carbon-POS so shared env/labels are easy.
 4. **Environment: production** (uuid `fgggck4ssg40o004g0c0o088`).
-5. **Domain**: `loyalty.shopcarbon.com`.
+5. **Domain**: `rewards.shopcarbon.com`.
 6. **Port**: `5100` (in both `EXPOSE` and Coolify's port-exposes setting).
 7. **Custom labels** (Traefik) — Coolify generates these from the port; if your build hits a 502 after first deploy, see `memory/project_pos_coolify_setup.md` — you may need to PATCH the application with the regenerated `custom_labels` after changing `ports_exposes`.
 8. **Health check path**: `/admin` (returns 307 to `/admin` — pass code `200,301,302,307,308`).
@@ -58,9 +58,9 @@ LOYALTY_API_KEY=<from step 3>
 SHOPIFY_API_SECRET=<Shopify app secret, from carbon-gen .env.coolify.local or the Partners dashboard>
 SHOPIFY_API_VERSION=2025-01
 NEXTAUTH_SECRET=<from step 3>
-NEXTAUTH_URL=https://loyalty.shopcarbon.com
+NEXTAUTH_URL=https://rewards.shopcarbon.com
 RESEND_API_KEY=<same value as Carbon-POS>
-LOYALTY_FROM_EMAIL=loyalty@shopcarbon.com
+LOYALTY_FROM_EMAIL=rewards@shopcarbon.com
 PORT=5100
 ```
 
@@ -72,7 +72,7 @@ automatically before starting the Next server.
 Add to the `Carbon-pos` Coolify app (uuid `i4scskw00484ok4480k8s0oc`):
 
 ```
-LOYALTY_API_BASE_URL=https://loyalty.shopcarbon.com
+LOYALTY_API_BASE_URL=https://rewards.shopcarbon.com
 LOYALTY_API_KEY=<same value as step 3>
 LOYALTY_OUTBOX_DRAIN_KEY=<from step 3>
 ```
@@ -84,7 +84,7 @@ Restart `Carbon-pos` (no rebuild needed; just restart so the env reloads).
 Add to the WMS Coolify app (uuid `h8044k088gko8cw4wgwwwg40`):
 
 ```
-LOYALTY_API_BASE_URL=https://loyalty.shopcarbon.com
+LOYALTY_API_BASE_URL=https://rewards.shopcarbon.com
 LOYALTY_API_KEY=<same value as step 3>
 ```
 
@@ -106,19 +106,19 @@ Every 1 minute. Drains queued earn / redeem / refund calls to loyalty.
 
 In your Shopify Partners dashboard for the Carbon Loyalty app
 (Carbon-Gen owns the install, but we need the routes pointed at
-loyalty.shopcarbon.com):
+rewards.shopcarbon.com):
 
-- **App URL**: `https://loyalty.shopcarbon.com`
+- **App URL**: `https://rewards.shopcarbon.com`
 - **Allowed redirection URLs**: include
-  `https://loyalty.shopcarbon.com/api/auth/callback`
+  `https://rewards.shopcarbon.com/api/auth/callback`
 - **App proxy**:
   - sub-path prefix: `apps`
   - sub-path: `loyalty`
-  - proxy URL: `https://loyalty.shopcarbon.com/apps/loyalty`
+  - proxy URL: `https://rewards.shopcarbon.com/apps/loyalty`
 - **Webhook subscriptions**:
-  - `orders/create` → `https://loyalty.shopcarbon.com/api/shopify/webhooks/orders-create`
-  - `orders/cancelled` → `https://loyalty.shopcarbon.com/api/shopify/webhooks/orders-cancelled`
-  - `refunds/create` → `https://loyalty.shopcarbon.com/api/shopify/webhooks/refunds-create`
+  - `orders/create` → `https://rewards.shopcarbon.com/api/shopify/webhooks/orders-create`
+  - `orders/cancelled` → `https://rewards.shopcarbon.com/api/shopify/webhooks/orders-cancelled`
+  - `refunds/create` → `https://rewards.shopcarbon.com/api/shopify/webhooks/refunds-create`
   - API version: 2025-01
 
 ## 10. Flip the live switch when ready
@@ -126,7 +126,7 @@ loyalty.shopcarbon.com):
 `live = false` by default. Customers see no change, no points
 accumulate, redemption is blocked. When you're ready to go live:
 
-  https://loyalty.shopcarbon.com/admin/settings → toggle "LOYALTY_LIVE" → save
+  https://rewards.shopcarbon.com/admin/settings → toggle "LOYALTY_LIVE" → save
 
 That's the cutover moment. Kangaroo can be uninstalled the same hour.
 
@@ -134,8 +134,8 @@ That's the cutover moment. Kangaroo can be uninstalled the same hour.
 
 ```sh
 # Health
-curl -fsS -I https://loyalty.shopcarbon.com/admin   # should be 200 or 307
-curl -fsS https://loyalty.shopcarbon.com/api/v1/customers/1/balance   # 401 (no bearer)
+curl -fsS -I https://rewards.shopcarbon.com/admin   # should be 200 or 307
+curl -fsS https://rewards.shopcarbon.com/api/v1/customers/1/balance   # 401 (no bearer)
 
 # Migration ran
 docker run --rm -e PGPASSWORD='…' postgres:18 psql -h 178.156.136.112 -p 2040 -U postgres -d postgres \
