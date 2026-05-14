@@ -22,14 +22,20 @@ export default async function AdminHome() {
         WHERE customer_id IS NOT NULL`,
     ),
     pool.query<{ awarded: string; redeemed: string; refunded: string }>(
-      // Manual back-office adjustments (reason='manual', reason='adjustment')
-      // are intentionally excluded from both KPIs: they're staff overrides,
-      // not organic earn/redeem activity, and including them would let a
-      // single goodwill bump distort the program's headline numbers.
+      // KPIs count organic activity only. Manager overrides
+      // (source='admin') are excluded from both Points awarded and
+      // Points redeemed — a manual adjustment is staff intervention,
+      // not a sale or a redemption. "Redeemed" further requires a live
+      // customer source (POS or Shopify) so no admin row can ever
+      // contribute to it, even if mis-classified.
       `SELECT
-         COALESCE(SUM(CASE WHEN delta_points > 0 AND reason IN ('sale','signup_bonus','birthday_bonus','referral_bonus')
+         COALESCE(SUM(CASE WHEN delta_points > 0
+                             AND source IN ('pos','shopify')
+                             AND reason IN ('sale','signup_bonus','birthday_bonus','referral_bonus')
                             THEN delta_points ELSE 0 END), 0)::text AS awarded,
-         COALESCE(SUM(CASE WHEN reason = 'redemption' THEN -delta_points ELSE 0 END), 0)::text AS redeemed,
+         COALESCE(SUM(CASE WHEN reason = 'redemption'
+                             AND source IN ('pos','shopify')
+                            THEN -delta_points ELSE 0 END), 0)::text AS redeemed,
          COALESCE(SUM(CASE WHEN reason = 'refund' THEN delta_points ELSE 0 END), 0)::text AS refunded
        FROM loyalty_ledger`,
     ),
