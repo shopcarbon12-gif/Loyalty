@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAuthorizedServerCall } from "@/lib/auth";
 import { insertLedger, withTransaction } from "@/lib/loyalty";
+import { getSettings } from "@/lib/settings";
 
 const schema = z.object({
   customer_id: z.number().int().positive(),
@@ -41,6 +42,13 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
+  // Show $ in the Basis column for these manual rows at the current
+  // redeem rate. Sign of delta_points is preserved; basis is unsigned.
+  const settings = await getSettings();
+  const basis =
+    settings.redeem_points_per_dollar > 0
+      ? Math.round((Math.abs(data.delta_points) / settings.redeem_points_per_dollar) * 100) / 100
+      : null;
   try {
     const result = await withTransaction((client) =>
       insertLedger(client, {
@@ -53,7 +61,7 @@ export async function POST(req: Request) {
         // ledger view without a separate column. Time-stamped to keep
         // the unique index happy across multiple adjustments.
         source_ref: `admin:${Date.now()}:${data.reason_text.slice(0, 60)}`,
-        amount_basis: null,
+        amount_basis: basis,
         created_by: data.acted_by_user_id,
       }),
     );

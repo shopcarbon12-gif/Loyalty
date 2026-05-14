@@ -116,45 +116,54 @@ export default async function CustomerDetail({
   const nextTier = tiers.find((t) => t.qualifying_points > life);
 
   // Server actions for manual overrides ------------------------------------
-  // Both actions stamp reason='manual' so they're excluded from the
-  // organic earn/redeem KPIs on the dashboard. They are manager-only
-  // adjustments, not customer activity.
+  // Both actions take a positive integer and stamp reason='manual' so
+  // they're excluded from the organic earn/redeem KPIs on the dashboard.
+  // The Basis column shows the dollar equivalent at the current
+  // redeem_points_per_dollar rate so admins can sanity-check.
+  function basisDollars(absPoints: number, perDollar: number): number {
+    if (!perDollar) return 0;
+    return Math.round((absPoints / perDollar) * 100) / 100;
+  }
+
   async function rewardAction(formData: FormData) {
     "use server";
     const pts = Number(formData.get("points") ?? 0);
     const note = String(formData.get("note") ?? "").trim().slice(0, 60);
     if (!Number.isFinite(pts) || pts <= 0) return;
+    const settings = await getSettings();
+    const whole = Math.floor(pts);
     await withTransaction((client) =>
       insertLedger(client, {
         customer_id: customerId,
         shopify_gid: null,
-        delta_points: Math.floor(pts),
+        delta_points: whole,
         reason: "manual",
         source: "admin",
         source_ref: `admin:reward:${Date.now()}:${note || "manual"}`,
-        amount_basis: null,
+        amount_basis: basisDollars(whole, settings.redeem_points_per_dollar),
       }),
     );
     revalidatePath(`/admin/customers/${customerId}`);
     redirect(`/admin/customers/${customerId}`);
   }
 
-  async function adjustAction(formData: FormData) {
+  async function deductAction(formData: FormData) {
     "use server";
-    // Signed integer: positive adds, negative deducts. Manager override —
-    // not subject to redeem min/increment rules.
-    const delta = Number(formData.get("points") ?? 0);
+    // Positive integer input — always deducts. Mirror of rewardAction.
+    const pts = Number(formData.get("points") ?? 0);
     const note = String(formData.get("note") ?? "").trim().slice(0, 60);
-    if (!Number.isFinite(delta) || delta === 0) return;
+    if (!Number.isFinite(pts) || pts <= 0) return;
+    const settings = await getSettings();
+    const whole = Math.floor(pts);
     await withTransaction((client) =>
       insertLedger(client, {
         customer_id: customerId,
         shopify_gid: null,
-        delta_points: Math.trunc(delta),
+        delta_points: -whole,
         reason: "manual",
         source: "admin",
-        source_ref: `admin:adjust:${Date.now()}:${note || "manual"}`,
-        amount_basis: null,
+        source_ref: `admin:deduct:${Date.now()}:${note || "manual"}`,
+        amount_basis: basisDollars(whole, settings.redeem_points_per_dollar),
       }),
     );
     revalidatePath(`/admin/customers/${customerId}`);
@@ -265,9 +274,9 @@ export default async function CustomerDetail({
 
           <aside className="space-y-4">
             <div className="carbon-card p-5">
-              <h2 className="text-base font-bold mb-3">＋ Reward points</h2>
+              <h2 className="text-base font-bold mb-3">＋ Rewards points</h2>
               <p className="text-xs text-[var(--carbon-muted)] mb-3">
-                Manager override · adds points directly to this customer.
+                Manager override · adds points to this customer.
               </p>
               <form action={rewardAction} className="space-y-3">
                 <label className="flex flex-col gap-1">
@@ -283,29 +292,20 @@ export default async function CustomerDetail({
             </div>
 
             <div className="carbon-card p-5">
-              <h2 className="text-base font-bold mb-3">⇄ Adjust points</h2>
+              <h2 className="text-base font-bold mb-3">− Rewards points</h2>
               <p className="text-xs text-[var(--carbon-muted)] mb-3">
-                Manager override · positive adds, negative deducts. Bypasses
-                redemption rules.
+                Manager override · deducts points from this customer.
               </p>
-              <form action={adjustAction} className="space-y-3">
+              <form action={deductAction} className="space-y-3">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Points (±)</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="-?[0-9]+"
-                    name="points"
-                    required
-                    className="carbon-input"
-                    placeholder="-100"
-                  />
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Points to deduct</span>
+                  <input type="number" step="1" min="1" name="points" required className="carbon-input" placeholder="100" />
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--carbon-muted)]">Note (optional)</span>
                   <input type="text" name="note" maxLength={60} className="carbon-input" placeholder="Reason / reference" />
                 </label>
-                <button type="submit" className="carbon-btn-secondary w-full">Apply adjustment</button>
+                <button type="submit" className="carbon-btn-secondary w-full">Deduct points</button>
               </form>
             </div>
 
