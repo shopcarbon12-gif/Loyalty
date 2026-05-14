@@ -38,9 +38,17 @@ ENV PORT=5100
 # to the container's internal hostname only (e.g. b3ba1f42719b) and the
 # docker healthcheck can't reach it via localhost.
 ENV HOSTNAME=0.0.0.0
+# Operator is in US Eastern. Install tzdata + set TZ so server-side date
+# rendering (Node Date.toLocaleString, log timestamps, server actions
+# returning formatted strings) shows EDT/EST instead of UTC. Postgres
+# columns are TIMESTAMPTZ so storage stays UTC; only the display layer
+# changes.
+ENV TZ=America/New_York
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs \
-  && apk add --no-cache libc6-compat postgresql-client su-exec curl
+  && apk add --no-cache libc6-compat postgresql-client su-exec curl tzdata \
+  && cp /usr/share/zoneinfo/America/New_York /etc/localtime \
+  && echo "America/New_York" > /etc/timezone
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
