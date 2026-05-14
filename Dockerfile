@@ -22,7 +22,10 @@ ENV NPM_CONFIG_PRODUCTION=false
 ENV CI=true
 ENV DOCKER_BUILD=1
 ENV NEXT_REACT_COMPILER=0
-ENV NODE_OPTIONS=--max-old-space-size=4096
+# Heap cap. Coolify build host has 1.9 GB RAM + 2 GB swap. 4096 was
+# OOM-killing the TypeScript phase on 2026-05-14 builds (exit 255 +
+# generic DeploymentException). 2048 fits alongside running containers.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # BuildKit cache survives across deploys.
