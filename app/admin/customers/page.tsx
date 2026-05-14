@@ -17,6 +17,18 @@ type Row = {
   lifetime: string;
   last_event_at: string | null;
   shopify_customer_gid: string | null;
+  created_via: string | null;
+  created_at_geo: string | null;
+  pos_location_name: string | null;
+};
+
+const SOURCE_LABELS: Record<string, { label: string; tone: string }> = {
+  pos:        { label: "Store",        tone: "bg-blue-100 text-blue-800" },
+  shopify:    { label: "Online",       tone: "bg-emerald-100 text-emerald-800" },
+  wms_manual: { label: "WMS · Manual", tone: "bg-purple-100 text-purple-800" },
+  wms_csv:    { label: "WMS · CSV",    tone: "bg-amber-100 text-amber-800" },
+  admin:      { label: "Admin",        tone: "bg-slate-200 text-slate-800" },
+  legacy:     { label: "Legacy",       tone: "bg-stone-200 text-stone-700" },
 };
 
 /**
@@ -49,6 +61,9 @@ export default async function CustomersPage({
     where.push(`pc.shopify_customer_gid IS NOT NULL`);
   } else if (filter === "active_30d") {
     where.push(`lb.last_event_at >= now() - interval '30 days'`);
+  } else if (filter.startsWith("via_")) {
+    args.push(filter.slice("via_".length));
+    where.push(`pc.created_via = $${args.length}`);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -57,6 +72,7 @@ export default async function CustomersPage({
   const countSql = `SELECT COUNT(*)::text AS n
                       FROM pos_customers pc
                       LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
+                      LEFT JOIN pos_locations  pl ON pl.id = pc.pos_location_id
                       ${whereSql}`;
 
   const listArgs = [...args, PAGE_SIZE, offset];
@@ -76,9 +92,13 @@ export default async function CustomersPage({
               COALESCE((SELECT SUM(delta_points) FROM loyalty_ledger
                           WHERE customer_id = pc.id AND delta_points > 0), 0)::text AS lifetime,
               lb.last_event_at,
-              pc.shopify_customer_gid
+              pc.shopify_customer_gid,
+              pc.created_via,
+              pc.created_at_geo,
+              pl.name AS pos_location_name
          FROM pos_customers pc
          LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
+         LEFT JOIN pos_locations  pl ON pl.id = pc.pos_location_id
          ${whereSql}
         ORDER BY COALESCE(lb.balance, 0) DESC, pc.last_name NULLS LAST, pc.first_name
         LIMIT $${limitIdx}::int OFFSET $${offsetIdx}::int`,
@@ -122,6 +142,11 @@ export default async function CustomersPage({
               <option value="high_balance">Balance ≥ 500</option>
               <option value="shopify_linked">Shopify-linked</option>
               <option value="active_30d">Active last 30d</option>
+              <optgroup label="By source">
+                {Object.entries(SOURCE_LABELS).map(([key, v]) => (
+                  <option key={key} value={`via_${key}`}>{v.label}</option>
+                ))}
+              </optgroup>
             </select>
           </label>
           <button type="submit" className="carbon-btn-secondary">Apply</button>
@@ -138,7 +163,7 @@ export default async function CustomersPage({
                 <th className="text-right px-3 py-2">Balance</th>
                 <th className="text-right px-3 py-2">Lifetime</th>
                 <th className="text-left px-3 py-2">Last activity</th>
-                <th className="text-left px-3 py-2">Shopify</th>
+                <th className="text-left px-3 py-2">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--carbon-border-soft)]">
@@ -177,12 +202,29 @@ export default async function CustomersPage({
                     <td className="px-3 py-2 whitespace-nowrap text-[var(--carbon-muted)]">
                       {r.last_event_at ? new Date(r.last_event_at).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-3 py-2">
-                      {r.shopify_customer_gid ? (
-                        <span className="text-[var(--carbon-success)] text-xs font-bold">linked</span>
-                      ) : (
-                        <span className="text-[var(--carbon-muted)] text-xs">—</span>
-                      )}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {(() => {
+                        const v = SOURCE_LABELS[r.created_via ?? ""] ?? SOURCE_LABELS.legacy;
+                        const where =
+                          r.pos_location_name ?? r.created_at_geo ?? null;
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            <span
+                              className={`inline-block w-fit px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${v.tone}`}
+                            >
+                              {v.label}
+                            </span>
+                            {where ? (
+                              <span className="text-[11px] text-[var(--carbon-muted)]">
+                                {where}
+                                {r.shopify_customer_gid && r.created_via !== "shopify" ? " · shopify-linked" : ""}
+                              </span>
+                            ) : r.shopify_customer_gid && r.created_via !== "shopify" ? (
+                              <span className="text-[11px] text-[var(--carbon-muted)]">shopify-linked</span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))
