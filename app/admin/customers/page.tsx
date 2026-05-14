@@ -20,6 +20,8 @@ type Row = {
   created_via: string | null;
   created_at_geo: string | null;
   pos_location_name: string | null;
+  created_by_email: string | null;
+  created_at: string | null;
 };
 
 const SOURCE_LABELS: Record<string, { label: string; tone: string }> = {
@@ -95,11 +97,14 @@ export default async function CustomersPage({
               pc.created_via,
               pc.created_at_geo,
               -- pos_locations holds no name; resolve via wms-owned locations
-              l.name AS pos_location_name
+              l.name AS pos_location_name,
+              u.email AS created_by_email,
+              pc.created_at::text AS created_at
          FROM pos_customers pc
          LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
          LEFT JOIN pos_locations  pl ON pl.id = pc.pos_location_id
          LEFT JOIN locations      l  ON l.id  = pl.wms_location_id
+         LEFT JOIN users          u  ON u.id  = pc.created_by_user_id
          ${whereSql}
         ORDER BY COALESCE(lb.balance, 0) DESC, pc.last_name NULLS LAST, pc.first_name
         LIMIT $${limitIdx}::int OFFSET $${offsetIdx}::int`,
@@ -203,26 +208,27 @@ export default async function CustomersPage({
                     <td className="px-3 py-2 whitespace-nowrap text-[var(--carbon-muted)]">
                       {r.last_event_at ? new Date(r.last_event_at).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap align-top">
                       {(() => {
                         const v = SOURCE_LABELS[r.created_via ?? ""] ?? SOURCE_LABELS.legacy;
                         const where =
                           r.pos_location_name ?? r.created_at_geo ?? null;
+                        const when = r.created_at
+                          ? new Date(r.created_at).toLocaleDateString()
+                          : null;
+                        const linked =
+                          r.shopify_customer_gid && r.created_via !== "shopify";
                         return (
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex flex-col gap-0.5 text-[11px] text-[var(--carbon-muted)] leading-tight">
                             <span
                               className={`inline-block w-fit px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${v.tone}`}
                             >
                               {v.label}
                             </span>
-                            {where ? (
-                              <span className="text-[11px] text-[var(--carbon-muted)]">
-                                {where}
-                                {r.shopify_customer_gid && r.created_via !== "shopify" ? " · shopify-linked" : ""}
-                              </span>
-                            ) : r.shopify_customer_gid && r.created_via !== "shopify" ? (
-                              <span className="text-[11px] text-[var(--carbon-muted)]">shopify-linked</span>
-                            ) : null}
+                            {where ? <span>{where}</span> : null}
+                            {r.created_by_email ? <span>by {r.created_by_email}</span> : null}
+                            {when ? <span>{when}</span> : null}
+                            {linked ? <span className="text-[10px]">↗ shopify-linked</span> : null}
                           </div>
                         );
                       })()}
