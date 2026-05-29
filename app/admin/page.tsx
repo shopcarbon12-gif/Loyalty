@@ -16,33 +16,20 @@ export const dynamic = "force-dynamic";
 export default async function AdminHome() {
   const pool = getPool();
   const settings = await getSettings();
-  const [members, summary] = await Promise.all([
-    pool.query<{ n: string }>(
-      `SELECT COUNT(DISTINCT customer_id)::text AS n FROM loyalty_ledger
-        WHERE customer_id IS NOT NULL`,
-    ),
-    pool.query<{ awarded: string; redeemed: string; refunded: string }>(
-      // KPIs count organic activity only. Manager overrides
-      // (source='admin') are excluded from both Points awarded and
-      // Points redeemed — a manual adjustment is staff intervention,
-      // not a sale or a redemption. "Redeemed" further requires a live
-      // customer source (POS or Shopify) so no admin row can ever
-      // contribute to it, even if mis-classified.
-      `SELECT
-         COALESCE(SUM(CASE WHEN delta_points > 0
-                             AND source IN ('pos','shopify')
-                             AND reason IN ('sale','signup_bonus','birthday_bonus','referral_bonus')
-                            THEN delta_points ELSE 0 END), 0)::text AS awarded,
-         COALESCE(SUM(CASE WHEN reason = 'redemption'
-                             AND source IN ('pos','shopify')
-                            THEN -delta_points ELSE 0 END), 0)::text AS redeemed,
-         COALESCE(SUM(CASE WHEN reason = 'refund' THEN delta_points ELSE 0 END), 0)::text AS refunded
-       FROM loyalty_ledger`,
-    ),
-  ]);
-  const m = Number(members.rows[0]?.n ?? 0);
-  const awarded = Number(summary.rows[0]?.awarded ?? 0);
-  const redeemed = Number(summary.rows[0]?.redeemed ?? 0);
+  // KPIs come from loyalty_kpi_summary — the single shared view both this
+  // dashboard and wms.shopcarbon.com/loyalty read, so the two can't drift
+  // (see migration 005). The view counts organic activity only: manager
+  // overrides (reason='manual', source='admin') are excluded from awarded
+  // and redeemed.
+  const kpi = await pool.query<{ members: string; awarded: string; redeemed: string }>(
+    `SELECT members::text          AS members,
+            points_awarded::text   AS awarded,
+            points_redeemed::text  AS redeemed
+       FROM loyalty_kpi_summary`,
+  );
+  const m = Number(kpi.rows[0]?.members ?? 0);
+  const awarded = Number(kpi.rows[0]?.awarded ?? 0);
+  const redeemed = Number(kpi.rows[0]?.redeemed ?? 0);
   return (
     <AdminShell active="dashboard">
       <section className="p-8">
