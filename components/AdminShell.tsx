@@ -1,14 +1,14 @@
 import Link from "next/link";
+import { getSession } from "@/lib/get-session";
+import { LogoutButton } from "@/components/LogoutButton";
 
 /**
  * Bare-bones AdminShell for rewards.shopcarbon.com. Same Carbon look as
- * Carbon-POS — sidebar + topbar + main column.
- *
- * For B0/B1 we don't gate the UI with a NextAuth session (the service
- * is internal-only and Coolify can be set to require basic-auth in front
- * of it). B6 wires a real shared NextAuth session with Carbon-POS.
+ * Carbon-POS — sidebar + topbar + main column. Session-gated by
+ * middleware.ts; this only renders the current user's email + a logout
+ * button. Credentials are managed in WMS at /settings → Rewards users.
  */
-export function AdminShell({
+export async function AdminShell({
   active,
   title,
   children,
@@ -17,6 +17,7 @@ export function AdminShell({
   title?: string;
   children: React.ReactNode;
 }) {
+  const session = await getSession();
   const NAV = [
     { key: "dashboard", icon: "dashboard",      href: "/admin", label: "Dashboard" },
     { key: "customers", icon: "people",         href: "/admin/customers", label: "Customers" },
@@ -40,7 +41,7 @@ export function AdminShell({
             className="w-24 h-24 object-cover shrink-0"
           />
           <span className="carbon-wordmark text-2xl font-semibold tracking-tight leading-none pb-1">
-            Carbon <b className="font-extrabold tracking-wider">LOYALTY</b>
+            Carbon <b className="font-extrabold tracking-wider">REWARDS</b>
           </span>
         </Link>
         <nav className="flex-1 flex flex-col gap-1">
@@ -56,7 +57,7 @@ export function AdminShell({
           ))}
         </nav>
         <div className="border-t border-[var(--carbon-border-soft)] pt-4 mt-4 px-4">
-          <p className="text-xs text-[var(--carbon-muted)]">Carbon-Loyalty</p>
+          <p className="text-xs text-[var(--carbon-muted)]">Carbon-Rewards</p>
           <p className="text-xs text-[var(--carbon-muted)]">rewards.shopcarbon.com</p>
         </div>
       </aside>
@@ -71,6 +72,14 @@ export function AdminShell({
           <h1 className="text-lg font-bold tracking-tight">
             {title ?? NAV.find((n) => n.key === active)?.label}
           </h1>
+          {session ? (
+            <div className="ml-auto flex items-center gap-3 text-sm">
+              <span className="text-[var(--carbon-muted)] hidden sm:inline">
+                {session.email}
+              </span>
+              <LogoutButton />
+            </div>
+          ) : null}
         </header>
         <main className="flex-1">{children}</main>
       </div>

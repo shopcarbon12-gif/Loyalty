@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Carbon Loyalty",
-  description: "Carbon Jeans Company — loyalty service",
+  title: "Carbon Rewards",
+  description: "Carbon Jeans Company — rewards service",
 };
 
 export default function RootLayout({

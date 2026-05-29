@@ -109,7 +109,7 @@ export default async function SettingsPage() {
                     defaultChecked={settings.points_never_expire} />
           </Group>
           <Group title="Live switch">
-            <Toggle label="LOYALTY_LIVE — when ON, the program is live for customers"
+            <Toggle label="Rewards live — when ON, the program is live for customers"
                     name="live" defaultChecked={settings.live} />
           </Group>
           <button type="submit" className="carbon-btn-primary">Save settings</button>
