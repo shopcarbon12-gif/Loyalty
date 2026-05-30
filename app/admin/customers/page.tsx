@@ -11,8 +11,8 @@ type Row = {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
-  mobile_phone: string | null;
   phone: string | null;
+  phone_2: string | null;
   balance: string;
   lifetime: string;
   last_event_at: string | null;
@@ -54,7 +54,7 @@ export default async function CustomersPage({
   if (q) {
     args.push(`%${q}%`);
     where.push(
-      `(pc.first_name ILIKE $${args.length} OR pc.last_name ILIKE $${args.length} OR pc.email ILIKE $${args.length} OR pc.mobile_phone ILIKE $${args.length} OR pc.phone ILIKE $${args.length})`,
+      `(pc.first_name ILIKE $${args.length} OR pc.last_name ILIKE $${args.length} OR pc.email ILIKE $${args.length} OR pc.phone ILIKE $${args.length} OR pc.phone_2 ILIKE $${args.length})`,
     );
   }
   if (filter === "high_balance") {
@@ -87,8 +87,8 @@ export default async function CustomersPage({
               pc.first_name,
               pc.last_name,
               pc.email,
-              pc.mobile_phone,
               pc.phone,
+              pc.phone_2,
               COALESCE(lb.balance, 0)::text AS balance,
               COALESCE((SELECT SUM(delta_points) FROM loyalty_ledger
                           WHERE customer_id = pc.id AND delta_points > 0), 0)::text AS lifetime,
@@ -209,7 +209,7 @@ export default async function CustomersPage({
                     </td>
                     <td className="px-3 py-2">
                       <Link href={`/admin/customers/${r.id}`} className="block">
-                        {r.mobile_phone ?? r.phone ?? <span className="text-[var(--carbon-muted)]">—</span>}
+                        {r.phone ?? r.phone_2 ?? <span className="text-[var(--carbon-muted)]">—</span>}
                       </Link>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-bold">

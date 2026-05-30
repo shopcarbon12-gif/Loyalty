@@ -13,8 +13,8 @@ type Customer = {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
-  mobile_phone: string | null;
   phone: string | null;
+  phone_2: string | null;
   birthday: string | null;
   shopify_customer_gid: string | null;
   shopify_linked_at: string | null;
@@ -55,7 +55,7 @@ export default async function CustomerDetail({
 
   const [c, balance, lifetime, ledger, tierRow] = await Promise.all([
     pool.query<Customer>(
-      `SELECT id, first_name, last_name, email, mobile_phone, phone,
+      `SELECT id, first_name, last_name, email, phone, phone_2,
               birthday::text, shopify_customer_gid, shopify_linked_at::text, created_at::text
          FROM pos_customers WHERE id = $1`,
       [customerId],
@@ -190,7 +190,7 @@ export default async function CustomerDetail({
             <h1 className="text-2xl font-bold">{fullName}</h1>
             <p className="text-sm text-[var(--carbon-muted)] mt-1">
               {customer.email ?? ""}
-              {customer.mobile_phone || customer.phone ? ` · ${customer.mobile_phone ?? customer.phone}` : ""}
+              {customer.phone || customer.phone_2 ? ` · ${customer.phone ?? customer.phone_2}` : ""}
               {customer.birthday ? ` · 🎂 ${customer.birthday}` : ""}
             </p>
             <p className="text-xs text-[var(--carbon-muted)] mt-1">

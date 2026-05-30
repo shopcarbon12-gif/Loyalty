@@ -35,7 +35,7 @@ export async function POST(req: Request) {
           SET first_name   = COALESCE($2, first_name),
               last_name    = COALESCE($3, last_name),
               email        = COALESCE($4, email),
-              mobile_phone = COALESCE($5, mobile_phone)
+              phone        = COALESCE($5, phone)
         WHERE shopify_customer_gid = $1`,
       [gid, c.first_name ?? null, c.last_name ?? null, c.email ?? null, c.phone ?? null],
     );

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       const existing = await client.query<{ id: number }>(
         `SELECT id FROM pos_customers
           WHERE shopify_customer_gid = $1
-             OR (email IS NOT NULL AND email = $2 AND mobile_phone IS NOT NULL AND mobile_phone = $3)
+             OR (email IS NOT NULL AND email = $2 AND phone_2 IS NOT NULL AND phone_2 = $3)
              OR (email IS NOT NULL AND email = $2 AND phone IS NOT NULL AND phone = $3)
           ORDER BY shopify_customer_gid IS NOT NULL DESC
           LIMIT 1`,
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         const geo = formatGeo(c.default_address);
         const ins = await client.query<{ id: number }>(
           `INSERT INTO pos_customers
-             (first_name, last_name, email, mobile_phone, birthday,
+             (first_name, last_name, email, phone, birthday,
               shopify_customer_gid, shopify_linked_at,
               created_via, created_at_geo, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, now(), 'shopify', $7, now())
