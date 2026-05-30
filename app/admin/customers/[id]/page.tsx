@@ -33,6 +33,18 @@ type LedgerRow = {
   pos_location_code: string | null;
 };
 
+// Dollar equivalent of a points amount at the current redeem rate (shown in
+// the Basis column). MUST stay at module scope: the inline "use server"
+// actions below close over it, and Next.js tries to serialize an inline
+// action's closed-over variables to bind the reference for the client form.
+// A closed-over *function* can't be serialized — it throws "Functions cannot
+// be passed directly to Client Components". A module-scope function is a
+// plain reference, not a bound closure variable, so this is safe.
+function basisDollars(absPoints: number, perDollar: number): number {
+  if (!perDollar) return 0;
+  return Math.round((absPoints / perDollar) * 100) / 100;
+}
+
 /**
  * Admin → Customer detail. Mirrors the Kangaroo merchant-portal customer
  * page: profile + balance + tier progress + transactions + manager-only
@@ -120,11 +132,7 @@ export default async function CustomerDetail({
   // they're excluded from the organic earn/redeem KPIs on the dashboard.
   // The Basis column shows the dollar equivalent at the current
   // redeem_points_per_dollar rate so admins can sanity-check.
-  function basisDollars(absPoints: number, perDollar: number): number {
-    if (!perDollar) return 0;
-    return Math.round((absPoints / perDollar) * 100) / 100;
-  }
-
+  // (basisDollars is hoisted to module scope — see note above.)
   async function rewardAction(formData: FormData) {
     "use server";
     const pts = Number(formData.get("points") ?? 0);
