@@ -6,7 +6,7 @@ let _pool: Pool | null = null;
  * Single shared pg pool. Same Postgres as Carbon-POS and CarbonWMS — we
  * point at the internal Coolify hostname in production
  * (postgresql-database-iogw84scwo0owsco8c8wg4s0:5432) and at the public
- * 178.156.136.112:2040 mapping during laptop dev.
+ * 152.53.210.171:2040 mapping during laptop dev.
  */
 export function getPool(): Pool {
   if (_pool) return _pool;

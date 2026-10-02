@@ -26,7 +26,7 @@ Wherever shopcarbon.com's DNS is hosted (Cloudflare / Route 53 / etc):
 
   Type:  A
   Name:  loyalty
-  Value: 178.156.136.112        (same IP as pos.shopcarbon.com)
+  Value: 152.53.210.171        (same IP as pos.shopcarbon.com)
   Proxy: off (or use Coolify's TLS, not Cloudflare's)
 
 ## 3. Generate the shared secrets
@@ -39,7 +39,7 @@ openssl rand -base64 32  # → NEXTAUTH_SECRET (Loyalty only)
 
 ## 4. Provision the Coolify application
 
-In the Coolify UI on `178.156.136.112:8000`:
+In the Coolify UI on `152.53.210.171:8000`:
 
 1. New Application → from **GitHub** → repo `shopcarbon12-gif/Carbon-Loyalty`, branch `main`.
 2. **Build pack: Dockerfile** (we ship `Dockerfile` in the repo root).
@@ -138,6 +138,6 @@ curl -fsS -I https://rewards.shopcarbon.com/admin   # should be 200 or 307
 curl -fsS https://rewards.shopcarbon.com/api/v1/customers/1/balance   # 401 (no bearer)
 
 # Migration ran
-docker run --rm -e PGPASSWORD='…' postgres:18 psql -h 178.156.136.112 -p 2040 -U postgres -d postgres \
+docker run --rm -e PGPASSWORD='…' postgres:18 psql -h 152.53.210.171 -p 2040 -U postgres -d postgres \
   -c "SELECT count(*) FROM loyalty_settings;"   # 1
 ```
