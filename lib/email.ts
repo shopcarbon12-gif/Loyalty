@@ -96,7 +96,8 @@ export async function sendQueuedEmails(limit = 40): Promise<{ sent: number; fail
 
 type Rendered = { subject: string; html: string; text: string };
 
-function render(t: EmailTemplate, d: Record<string, unknown>): Rendered {
+/** Exported for previews/tests; production goes through sendQueuedEmails. */
+export function render(t: EmailTemplate, d: Record<string, unknown>): Rendered {
   const name = esc(String(d.first_name || "there"));
   const bal = Number(d.balance ?? 0);
   const balLine = `You now have <b>${bal.toLocaleString()} points</b> — every 100 points is $10 off.`;

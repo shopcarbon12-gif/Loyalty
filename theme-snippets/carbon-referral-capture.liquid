@@ -1,0 +1,30 @@
+{%- comment -%}
+  Carbon Rewards referrals. A shared link looks like shopcarbon.com/?ref=CODE.
+  We keep the code for 30 days and put it on the cart as the attribute
+  `carbon_ref`, so it arrives on the order (note_attributes); Carbon Rewards
+  pays both sides on the new customer's first qualifying purchase.
+  Rendered once from layout/theme.liquid.
+{%- endcomment -%}
+<script>
+  (() => {
+    const KEY = 'carbon_ref', TTL = 30 * 864e5;
+    let saved = null;
+    try {
+      const fromUrl = new URLSearchParams(location.search).get('ref');
+      if (fromUrl && /^[A-Za-z0-9-]{4,64}$/.test(fromUrl)) {
+        localStorage.setItem(KEY, JSON.stringify({ code: fromUrl.toUpperCase(), at: Date.now() }));
+      }
+      saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (saved && Date.now() - saved.at > TTL) { localStorage.removeItem(KEY); saved = null; }
+    } catch (e) { return; } // storage blocked — nothing to carry
+    if (!saved) return;
+    fetch('/cart.js').then((r) => r.json()).then((cart) => {
+      if ((cart.attributes || {}).carbon_ref === saved.code) return;
+      return fetch('/cart/update.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attributes: { carbon_ref: saved.code } }),
+      });
+    }).catch(() => {});
+  })();
+</script>

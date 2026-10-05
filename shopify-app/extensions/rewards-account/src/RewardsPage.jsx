@@ -114,6 +114,22 @@ function RewardsPage() {
         </s-section>
       )}
 
+      {summary?.tier && (
+        <s-section heading="Your tier">
+          <s-stack gap="small-200">
+            <s-text type="strong">
+              {summary.tier.name} · {summary.tier.multiplier}× points
+            </s-text>
+            {summary.tier.perks?.length > 0 && <s-text color="subdued">{summary.tier.perks.join(' · ')}</s-text>}
+            <s-text color="subdued">
+              {summary.tier.next
+                ? `${toNextLabel(summary.tier)} to reach ${summary.tier.next.name} (${summary.tier.next.multiplier}× points).`
+                : "You're at our top tier — thank you!"}
+            </s-text>
+          </s-stack>
+        </s-section>
+      )}
+
       {summary && rules?.live && options.length > 0 && !hasActiveCode && (
         <s-section heading="Redeem points">
           <s-stack gap="base">
@@ -169,6 +185,24 @@ function RewardsPage() {
         </s-section>
       )}
 
+      {summary?.referral && (
+        <s-section heading="Refer a friend">
+          <s-stack gap="base">
+            <s-paragraph>
+              Share your link. When a friend makes their first purchase of ${summary.referral.min_purchase}+, they get{' '}
+              {summary.referral.friend_gets} points and you get {summary.referral.you_get} points.
+            </s-paragraph>
+            <s-stack direction="inline" gap="base" alignItems="center">
+              <s-text type="strong">{summary.referral.url}</s-text>
+              <s-clipboard-item id="copy-referral" text={summary.referral.url} />
+              <s-button variant="secondary" commandFor="copy-referral">
+                Copy link
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-section>
+      )}
+
       {summary?.activity?.length > 0 && (
         <s-section heading="Recent activity">
           <s-stack gap="small-300">
@@ -214,6 +248,14 @@ function CodeRow({code}) {
       </s-button>
     </s-stack>
   );
+}
+
+// "Spend $380 more" / "Earn 380 more points" / "2 more purchases".
+function toNextLabel(tier) {
+  const n = Math.ceil(tier.next.needed);
+  if (tier.metric === 'points') return `Earn ${n.toLocaleString()} more points`;
+  if (tier.metric === 'visits') return `${n} more ${n === 1 ? 'purchase' : 'purchases'}`;
+  return `Spend $${n.toLocaleString()} more`;
 }
 
 function formatDate(iso) {

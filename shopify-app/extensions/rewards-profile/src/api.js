@@ -37,6 +37,22 @@ const SAMPLE = {
     {delta_points: 25, reason: 'signup_bonus', source: 'system', created_at: new Date().toISOString()},
   ],
   codes: [],
+  tier: {
+    code: 'bronze',
+    name: 'Bronze',
+    multiplier: 1,
+    perks: ['Welcome bonus', 'Birthday gift'],
+    metric: 'amount',
+    progress: 120,
+    next: {name: 'Silver', needed: 380, multiplier: 1.25},
+  },
+  referral: {
+    code: 'CARBON-PREVIEW-000000',
+    url: 'https://shopcarbon.com/?ref=CARBON-PREVIEW-000000',
+    you_get: 200,
+    friend_gets: 100,
+    min_purchase: 60,
+  },
   rules: {
     live: true,
     min_redeem_points: 100,
