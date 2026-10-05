@@ -1,0 +1,17 @@
+# "You earned N points" on the thank-you page (allowed on all plans).
+# Calls rewards.shopcarbon.com/api/account/order-points with the session token.
+api_version = "2026-07"
+
+[[extensions]]
+name = "Carbon Rewards points earned"
+handle = "rewards-thank-you"
+uid = "44f76364-be16-28ea-ffcc-ed41ccdbd5bcfb75123e"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/ThankYou.jsx"
+target = "purchase.thank-you.block.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true

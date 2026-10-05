@@ -21,3 +21,11 @@ redirect_urls = [
   "http://localhost:3040/api/shopify/callback",
   "https://ais-dev-ap6lftrkdxdrgcr7vt4pu5-368555571083.us-west2.run.app/auth/callback"
 ]
+
+# shopcarbon.com/apps/loyalty/* → Carbon Rewards. Signed with the logged-in
+# customer; powers the "Use your points" box in the cart (theme snippet
+# carbon-rewards-cart).
+[app_proxy]
+url = "https://rewards.shopcarbon.com/apps/loyalty"
+subpath = "loyalty"
+prefix = "apps"

@@ -1,0 +1,16 @@
+# Points earned on an order, on the customer-account order status page.
+api_version = "2026-07"
+
+[[extensions]]
+name = "Carbon Rewards order points"
+handle = "rewards-order-status"
+uid = "cec6b823-3d51-1dd1-671f-ca51a0906e4f9c01b482"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/OrderStatus.jsx"
+target = "customer-account.order-status.block.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true
