@@ -101,6 +101,22 @@ function RewardsPage() {
         </s-banner>
       )}
 
+      {summary?.thank_you_codes?.length > 0 && (
+        <s-section heading="Your thank-you code">
+          <s-stack gap="base">
+            {summary.thank_you_codes.map((c) => (
+              <s-stack key={c.code} gap="small-200">
+                <s-text type="strong">{c.percent_off}% off your next order</s-text>
+                <s-text color="subdued">
+                  Thank you for order {c.order_name} · one use · valid until {formatDate(c.ends_at)}
+                </s-text>
+                <CodeRow code={c.code} />
+              </s-stack>
+            ))}
+          </s-stack>
+        </s-section>
+      )}
+
       {summary && (
         <s-section heading="Your points">
           <s-stack gap="small-200">

@@ -17,6 +17,7 @@ function ProfileBlock() {
 
   if (!summary) return null;
   const dollars = redeemableDollars(summary);
+  const thankYou = summary.thank_you_codes?.[0];
 
   return (
     <s-section heading="Carbon Rewards">
@@ -26,9 +27,12 @@ function ProfileBlock() {
           <s-text color="subdued">
             {dollars ? `Worth $${dollars} off your next purchase` : 'Earn 1 point for every $1'}
           </s-text>
+          {thankYou && (
+            <s-text tone="success">You have a {thankYou.percent_off}% off code waiting in Rewards</s-text>
+          )}
         </s-stack>
         <s-button href="extension:rewards-account/" variant="primary">
-          {dollars ? 'Redeem' : 'View rewards'}
+          {dollars ? 'Redeem' : thankYou ? 'View code' : 'View rewards'}
         </s-button>
       </s-grid>
     </s-section>

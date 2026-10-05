@@ -36,6 +36,9 @@ const SAMPLE = {
     {delta_points: 25, reason: 'signup_bonus', source: 'system', created_at: new Date().toISOString()},
   ],
   codes: [],
+  thank_you_codes: [
+    {code: 'CARBON15-SAMPLE', percent_off: 15, ends_at: new Date(Date.now() + 40 * 86400000).toISOString(), order_name: '#1000'},
+  ],
   tier: {
     code: 'bronze',
     name: 'Bronze',
