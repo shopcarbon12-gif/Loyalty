@@ -25,6 +25,8 @@ export type ShopifyCustomerPayload = {
   email?: string | null;
   phone?: string | null;
   default_address?: {
+    first_name?: string | null;
+    last_name?: string | null;
     phone?: string | null;
     city?: string | null;
     province?: string | null;
@@ -90,7 +92,7 @@ export async function resolveShopifyCustomer(
           created_via, created_at_geo, created_at)
        VALUES ($1, $2, $3, $4, NULL, $5, now(), 'shopify', $6, now())
        RETURNING id`,
-      [c.first_name ?? null, c.last_name ?? null, c.email ?? null, posPhone(customerPhone(c)), gid, formatGeo(c.default_address)],
+      [firstName(c), c.last_name || c.default_address?.last_name || null, c.email ?? null, posPhone(customerPhone(c)), gid, formatGeo(c.default_address)],
     );
     customerId = ins.rows[0].id;
     created = true;
@@ -102,6 +104,20 @@ export async function resolveShopifyCustomer(
     [customerId, gid],
   );
   return { customerId, created, wasLinked: false };
+}
+
+/**
+ * pos_customers.first_name is required, but Shopify customers can be
+ * nameless (email-only checkout). Fall back to the address name, then the
+ * email's local part, so the member — and their points — still get created.
+ */
+function firstName(c: ShopifyCustomerPayload): string {
+  return (
+    c.first_name?.trim() ||
+    c.default_address?.first_name?.trim() ||
+    c.email?.split("@")[0]?.trim() ||
+    "Customer"
+  );
 }
 
 /**
