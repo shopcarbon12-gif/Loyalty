@@ -22,9 +22,18 @@ export async function verifyCustomerSession(
       clockTolerance: 10,
     });
     const sub = typeof payload.sub === "string" ? payload.sub : "";
-    if (!sub.startsWith("gid://shopify/Customer/")) return null;
+    if (!sub.startsWith("gid://shopify/Customer/")) {
+      console.warn("[customer-session] no customer in token", { sub: payload.sub ?? null, dest: payload.dest });
+      return null;
+    }
     return { customerGid: sub };
-  } catch {
+  } catch (err) {
+    // Log claims (never the token) so a rejected extension call is diagnosable.
+    let claims: unknown = null;
+    try {
+      claims = JSON.parse(Buffer.from(m[1].split(".")[1] ?? "", "base64url").toString("utf8"));
+    } catch {}
+    console.warn("[customer-session] rejected", err instanceof Error ? err.message : err, claims);
     return null;
   }
 }
