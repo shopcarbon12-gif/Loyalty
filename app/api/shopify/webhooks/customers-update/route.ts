@@ -44,6 +44,10 @@ export async function POST(req: Request) {
             SET first_name = COALESCE($2, first_name),
                 last_name  = COALESCE($3, last_name),
                 email      = COALESCE($4, email),
+                -- keep a changed number reachable at the till: the old one
+                -- moves into an empty phone_2 instead of being lost
+                phone_2    = CASE WHEN $5::text IS NOT NULL AND phone IS NOT NULL AND phone <> $5
+                                   AND phone_2 IS NULL THEN phone ELSE phone_2 END,
                 phone      = COALESCE($5, phone)
           WHERE id = $1`,
         [customerId, c.first_name || null, c.last_name || null, c.email || null, posPhone(customerPhone(c))],
