@@ -13,3 +13,5 @@ out
 tsconfig.tsbuildinfo
 next-env.d.ts
 .claude/
+shopify-app/.shopify/
+shopify-app/extensions/*/dist/

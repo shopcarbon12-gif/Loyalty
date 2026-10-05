@@ -1,0 +1,23 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "4727a6133fedbfcf37e9df7fba5744de"
+name = "Carbon_Studio"
+application_url = "https://app.shopcarbon.com/"
+embedded = true
+
+[webhooks]
+api_version = "2026-01"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,write_customers,read_discounts,write_draft_orders,read_draft_orders,write_files,write_inventory,read_legal_policies,write_legal_policies,read_locales,write_locales,read_locations,read_markets,write_markets,read_metaobject_definitions,read_metaobjects,read_online_store_navigation,write_online_store_navigation,read_orders,write_orders,read_products,write_products,read_publications,write_publications,read_script_tags,write_script_tags,read_shipping,write_shipping,read_content,write_content,read_themes,write_themes,read_translations,write_translations,read_pixels,write_pixels,read_all_orders,write_discounts"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://app.shopcarbon.com/api/shopify/callback",
+  "http://localhost:3000/api/shopify/callback",
+  "http://localhost:3040/api/shopify/callback",
+  "https://ais-dev-ap6lftrkdxdrgcr7vt4pu5-368555571083.us-west2.run.app/auth/callback"
+]

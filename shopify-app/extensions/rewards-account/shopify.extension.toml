@@ -1,0 +1,19 @@
+# Carbon Rewards in Shopify customer accounts (account.shopcarbon.com).
+# Talks to rewards.shopcarbon.com/api/account/* with the session token.
+api_version = "2026-07"
+
+[[extensions]]
+name = "Carbon Rewards"
+handle = "rewards-account"
+type = "ui_extension"
+uid = "c5b6aea3-2c40-7071-e7e3-38554e0b81777bb6f834"
+
+# Full "Rewards" page: balance, redeem $10/$20/$30, active codes, activity.
+[[extensions.targeting]]
+module = "./src/RewardsPage.jsx"
+target = "customer-account.page.render"
+
+[extensions.capabilities]
+api_access = true
+# fetch() to rewards.shopcarbon.com — must also be approved for the app.
+network_access = true

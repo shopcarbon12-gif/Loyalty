@@ -1,0 +1,19 @@
+# Carbon Rewards balance card on the customer-account Profile page.
+# Links to the full Rewards page (extension rewards-account). Shopify
+# doesn't allow a full-page target to share an extension with blocks.
+api_version = "2026-07"
+
+[[extensions]]
+name = "Carbon Rewards card"
+handle = "rewards-profile"
+uid = "39b0f7c1-d461-9b43-8ff2-71909f0f6421a88c0277"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/ProfileBlock.jsx"
+target = "customer-account.profile.block.render"
+
+[extensions.capabilities]
+api_access = true
+# fetch() to rewards.shopcarbon.com
+network_access = true
