@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { isAuthorizedServerCall } from "@/lib/auth";
 import { dollarsForPoints, getBalance } from "@/lib/loyalty";
+import { getSettings } from "@/lib/settings";
 
 /**
  * GET /api/v1/customers/:id/balance
  *
  * Server-to-server. POS calls on customer-attach to populate the balance
  * pill in TotalPanel. Returns balance, tier (when configured), and the
- * 5 most recent ledger entries for the right-side activity feed.
+ * 5 most recent ledger entries for the right-side activity feed, plus the
+ * live redemption rules so POS doesn't hard-code them.
  */
 export async function GET(
   req: Request,
@@ -32,11 +34,20 @@ export async function GET(
       LIMIT 5`,
     [customerId],
   );
+  const s = await getSettings();
   return NextResponse.json({
     customer_id: customerId,
     balance,
     dollars_value: dollars,
     tier: null, // populated in B6
     recent: recent.rows,
+    rules: {
+      live: s.live,
+      redeem_points_per_dollar: s.redeem_points_per_dollar,
+      redeem_increment_points: s.redeem_increment_points,
+      min_redeem_points: s.min_redeem_points,
+      max_redeem_pct_of_order: s.max_redeem_pct_of_order,
+      max_redeem_dollars_per_order: s.max_redeem_dollars_per_order,
+    },
   });
 }
