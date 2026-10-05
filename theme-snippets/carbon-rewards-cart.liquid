@@ -8,15 +8,8 @@
   Params: context — 'drawer' or 'page'.
 {%- endcomment -%}
 {%- if customer -%}
-  {%- assign crc_applied = '' -%}
-  {%- for d in cart.discount_codes -%}
-    {%- assign crc_upcase = d.code | upcase -%}
-    {%- if crc_upcase contains 'CR-' -%}{%- assign crc_applied = crc_upcase -%}{%- endif -%}
-  {%- endfor -%}
   <carbon-rewards-cart
     class="carbon-rewards-cart carbon-rewards-cart--{{ context | default: 'page' }}"
-    data-subtotal-cents="{{ cart.items_subtotal_price }}"
-    data-applied="{{ crc_applied }}"
     data-account-url="https://account.shopcarbon.com/pages/01a10b52-0216-71b7-9eed-6d9ea4827972"
     hidden
   >
@@ -64,28 +57,38 @@
           if (!res.ok) throw Object.assign(new Error(data.message || 'Something went wrong — please try again.'), { code: data.error });
           return data;
         }
+        // Read the live cart every time — the page's server-rendered state goes
+        // stale as soon as a code is applied or removed.
         async load() {
           try {
-            this.data = await this.api('balance');
+            const [data, cart] = await Promise.all([this.api('balance'), fetch('/cart.js').then((r) => r.json())]);
+            this.data = data;
+            this.cart = cart;
           } catch (e) { return; } // signed out / unavailable — stay hidden
-          if (!this.data.linked || !this.data.rules.live) return;
+          if (!this.data.linked || !this.data.rules.live) { this.hidden = true; return; }
+          // A reward code in the cart that's no longer active (cancelled or
+          // expired) would fail at checkout — take it out.
+          const inCart = this.cartCodes().find((c) => c.startsWith('CR-'));
+          const active = this.data.codes[0];
+          if (inCart && (!active || active.code.toUpperCase() !== inCart)) await this.setRewardCode('');
           this.render();
           this.hidden = false;
         }
-        async applyCode(code) {
-          const res = await fetch('/cart/update.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discount: code }) });
-          const cart = await res.json().catch(() => ({}));
-          const codes = (cart.discount_codes || []).map((c) => String(c.code).toUpperCase());
-          // Older cart API ignores `discount` — fall back to the /discount/<code> link.
-          if (code && !codes.includes(code.toUpperCase())) await fetch('/discount/' + encodeURIComponent(code) + '?redirect=/cart.js');
+        cartCodes() { return (this.cart.discount_codes || []).map((c) => String(c.code).toUpperCase()); }
+        // Replace our reward codes in the cart with `code` (or none), keeping any other codes.
+        async setRewardCode(code) {
+          const others = this.cartCodes().filter((c) => !c.startsWith('CR-'));
+          const want = code ? [...others, code.toUpperCase()] : others;
+          const res = await fetch('/cart/update.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discount: want.join(',') }) });
+          this.cart = await res.json().catch(() => this.cart);
+          if (this.classList.contains('carbon-rewards-cart--page')) return location.reload();
           document.dispatchEvent(new CustomEvent('cart:refresh', { bubbles: true }));
-          if (this.classList.contains('carbon-rewards-cart--page')) location.reload();
         }
         busy(on) { this.querySelectorAll('button').forEach((b) => (b.disabled = on || b.dataset.locked === '1')); }
         render() {
           const d = this.data, r = d.rules;
-          const subtotal = Number(this.dataset.subtotalCents || 0) / 100;
-          const applied = this.dataset.applied;
+          const subtotal = Number(this.cart.items_subtotal_price || 0) / 100;
+          const applied = this.cartCodes().find((c) => c.startsWith('CR-')) || '';
           const body = this.$('[data-crc-body]');
           this.$('[data-crc-balance]').textContent = d.balance + ' points';
           const active = d.codes[0];
@@ -127,14 +130,14 @@
           try {
             if (t.dataset.crcRedeem) {
               const { coupon } = await this.api('redeem', { points: Number(t.dataset.crcRedeem) });
-              await this.applyCode(coupon.code);
+              await this.setRewardCode(coupon.code);
             } else if (t.hasAttribute('data-crc-apply')) {
-              await this.applyCode(this.data.codes[0].code);
+              await this.setRewardCode(this.data.codes[0].code);
             } else if (t.hasAttribute('data-crc-cancel')) {
               await this.api('cancel', { code: this.data.codes[0].code });
-              if (this.dataset.applied) await this.applyCode('');
-              else { await this.load(); }
+              await this.setRewardCode('');
             }
+            await this.load();
           } catch (err) {
             this.setMsg(err.message);
             await this.load();
