@@ -47,7 +47,7 @@ export default async function AdminHome() {
           <h2 className="text-lg font-bold mb-2">Current rules</h2>
           <ul className="text-sm space-y-1 text-[var(--carbon-text)]">
             <li>Earn: <b>{settings.earn_rate_per_dollar} pt per $1</b> (tax {settings.exclude_tax ? "EXCLUDED" : "INCLUDED"})</li>
-            <li>Redeem: <b>{settings.redeem_increment_points} pts → ${(settings.redeem_increment_points / settings.redeem_points_per_dollar).toFixed(2)} off</b>, in {settings.redeem_increment_points}-pt steps, max {settings.max_redeem_pct_of_order}% of subtotal</li>
+            <li>Redeem: <b>{settings.redeem_increment_points} pts → ${(settings.redeem_increment_points / settings.redeem_points_per_dollar).toFixed(2)} off</b>, in {settings.redeem_increment_points}-pt steps, max {settings.max_redeem_pct_of_order}% of subtotal and ${settings.max_redeem_dollars_per_order} per purchase</li>
             <li>Welcome bonus: <b>{settings.signup_bonus_points} pts</b></li>
             <li>Birthday bonus: <b>{settings.birthday_bonus_points} pts</b></li>
             <li>Referral reward: <b>{settings.referral_reward_points} pts</b></li>

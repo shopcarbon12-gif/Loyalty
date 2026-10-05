@@ -12,6 +12,8 @@ import { shopifyGraphQL } from "./shopify";
  * Rules come from loyalty_settings, same as POS:
  *   - points ≥ min_redeem_points and a multiple of redeem_increment_points
  *   - value = points / redeem_points_per_dollar
+ *   - max_redeem_dollars_per_order caps a single code ($30); codes don't
+ *     combine with each other, so that's also the cap per purchase
  *   - max_redeem_pct_of_order → minimum subtotal on the code
  *   - allow_stacking_with_codes → combinesWith
  *   - coupon_ttl_hours → endsAt; unused codes are credited back on expiry
@@ -49,6 +51,12 @@ export async function issueCoupon(
     throw new RedeemError("increment_invalid", `Points must be a multiple of ${s.redeem_increment_points}.`);
   }
   const dollars = await dollarsForPoints(points);
+  if (s.max_redeem_dollars_per_order > 0 && dollars > s.max_redeem_dollars_per_order) {
+    throw new RedeemError(
+      "above_maximum",
+      `You can take up to $${s.max_redeem_dollars_per_order} off per purchase.`,
+    );
+  }
   const minSubtotal =
     s.max_redeem_pct_of_order > 0 && s.max_redeem_pct_of_order < 100
       ? Math.ceil((dollars * 100) / s.max_redeem_pct_of_order)

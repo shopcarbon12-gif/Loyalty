@@ -27,6 +27,7 @@ export async function GET(req: Request) {
     redeem_points_per_dollar: s.redeem_points_per_dollar,
     earn_rate_per_dollar: s.earn_rate_per_dollar,
     max_redeem_pct_of_order: s.max_redeem_pct_of_order,
+    max_redeem_dollars_per_order: s.max_redeem_dollars_per_order,
   };
   const member = c.rows[0];
   // Not linked yet — first online order or account update links them.

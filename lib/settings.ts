@@ -8,6 +8,7 @@ export type LoyaltySettings = {
   min_redeem_points: number;
   redeem_increment_points: number;
   max_redeem_pct_of_order: number;
+  max_redeem_dollars_per_order: number; // added in migration 008
   coupon_ttl_hours: number;
   allow_stacking_with_codes: boolean;
   signup_bonus_points: number;
@@ -40,6 +41,7 @@ export async function getSettings(): Promise<LoyaltySettings> {
             min_redeem_points,
             redeem_increment_points,
             max_redeem_pct_of_order,
+            max_redeem_dollars_per_order::float8 AS max_redeem_dollars_per_order,
             coupon_ttl_hours,
             allow_stacking_with_codes,
             signup_bonus_points,

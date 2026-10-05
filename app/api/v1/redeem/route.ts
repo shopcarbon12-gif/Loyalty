@@ -76,6 +76,16 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
+  const maxPoints = s.max_redeem_dollars_per_order * s.redeem_points_per_dollar;
+  if (s.max_redeem_dollars_per_order > 0 && data.points > maxPoints) {
+    return NextResponse.json(
+      {
+        error: "above_maximum",
+        message: `Up to $${s.max_redeem_dollars_per_order} (${maxPoints} points) per purchase.`,
+      },
+      { status: 422 },
+    );
+  }
   const balance = await getBalance(data.customer_id);
   if (balance < data.points) {
     return NextResponse.json(

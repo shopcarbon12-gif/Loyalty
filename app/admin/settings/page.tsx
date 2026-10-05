@@ -18,9 +18,6 @@ export default async function SettingsPage() {
     const num = (k: string) => Number(formData.get(k) ?? 0);
     const bool = (k: string) => formData.get(k) === "on";
     await getPool().query(
-      // coupon_ttl_hours is intentionally not written: the online-store
-      // redemption flow that mints expiring Shopify discount codes isn't
-      // built yet, so the field is hidden from the UI.
       `UPDATE loyalty_settings
           SET earn_rate_per_dollar         = $1,
               exclude_tax                  = $2,
@@ -37,6 +34,8 @@ export default async function SettingsPage() {
               referral_min_purchase        = $13,
               points_never_expire          = $14,
               live                         = $15,
+              max_redeem_dollars_per_order = $16,
+              coupon_ttl_hours             = $17,
               updated_at                   = now()
         WHERE id = 1`,
       [
@@ -55,6 +54,8 @@ export default async function SettingsPage() {
         num("referral_min_purchase"),
         bool("points_never_expire"),
         bool("live"),
+        num("max_redeem_dollars_per_order"),
+        num("coupon_ttl_hours"),
       ],
     );
     clearSettingsCache();
@@ -87,6 +88,10 @@ export default async function SettingsPage() {
                    type="number" defaultValue={settings.redeem_increment_points} />
             <Field label="Max % of order subtotal" name="max_redeem_pct_of_order"
                    type="number" defaultValue={settings.max_redeem_pct_of_order} />
+            <Field label="Max $ off per purchase" name="max_redeem_dollars_per_order"
+                   type="number" defaultValue={settings.max_redeem_dollars_per_order} />
+            <Field label="Online reward code expiry (hours)" name="coupon_ttl_hours"
+                   type="number" defaultValue={settings.coupon_ttl_hours} />
             <Toggle label="Allow stacking with other discount codes" name="allow_stacking_with_codes"
                     defaultChecked={settings.allow_stacking_with_codes} />
           </Group>
