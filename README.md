@@ -85,6 +85,15 @@ Then add a Coolify cron schedule:
 
 - `POST /api/cron/sync-metafields` — push changed balances to the
   `loyalty.balance` Shopify customer metafield the theme reads
+- `POST /api/cron/expire-coupons` — hourly; credit back points for online
+  reward codes that expired unused
+
+### Customer account (Shopify session token, CORS)
+
+Called by the Rewards page extension in `shopify-app/` (Carbon_Studio app).
+
+- `GET  /api/account/summary` — balance, activity, open codes, rules
+- `POST /api/account/redeem` — `{ points }` → single-use discount code
 
 ### Storefront app proxy (signature verified)
 

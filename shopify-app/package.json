@@ -1,0 +1,13 @@
+{
+  "name": "carbon-studio-extensions",
+  "private": true,
+  "description": "Shopify extensions for the Carbon_Studio app (customer-account Rewards page). Config is linked to the live app — run `npx shopify app config link` before deploying.",
+  "scripts": {
+    "shopify": "shopify",
+    "deploy": "shopify app deploy"
+  },
+  "workspaces": ["extensions/*"],
+  "devDependencies": {
+    "@shopify/cli": "4.8.4"
+  }
+}

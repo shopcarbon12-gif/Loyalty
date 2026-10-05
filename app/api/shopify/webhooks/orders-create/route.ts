@@ -6,6 +6,7 @@ import {
   withTransaction,
 } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
+import { markCouponsUsed } from "@/lib/coupons";
 import {
   resolveShopifyCustomer,
   type ShopifyCustomerPayload,
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: "pos_origin" });
   }
 
+  // Reward codes issued from the customer account — mark them spent.
+  await markCouponsUsed(
+    (order.discount_codes ?? []).map((d) => d.code ?? ""),
+    order.admin_graphql_api_id,
+  ).catch((err) => console.error("[orders-create] markCouponsUsed", err));
+
   const customerGid = order.customer?.admin_graphql_api_id ?? null;
   if (!customerGid) {
     return NextResponse.json({ ok: true, skipped: "no_customer" });
@@ -90,6 +97,7 @@ export async function POST(req: Request) {
 type ShopifyOrder = {
   admin_graphql_api_id: string;
   source_name?: string;
+  discount_codes?: Array<{ code?: string }>;
   subtotal_price?: string;
   total_discounts?: string;
   total_tax?: string;
