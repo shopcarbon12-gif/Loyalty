@@ -1,0 +1,237 @@
+{%- comment -%}
+  Carbon Rewards — floating widget (bottom-left), on every page except the
+  cart (which has its own rewards box; checkout can't be themed).
+  Signed out: how the program works + Join / Sign in. Signed in: points,
+  tier + progress, redeem $10/$20/$30 straight to the cart, referral link.
+  Data comes from rewards.shopcarbon.com via the app proxy
+  (/apps/loyalty/program and /balance); helpers in assets/carbon-rewards-core.js.
+  Rendered once from layout/theme.liquid.
+{%- endcomment -%}
+{%- unless template.name == 'cart' -%}
+<carbon-rewards-widget
+  class="crw"
+  data-signed-in="{% if customer %}1{% endif %}"
+  data-first-name="{{ customer.first_name | escape }}"
+  data-points="{{ customer.metafields.loyalty.balance.value | default: '' }}"
+  data-login-url="{{ routes.account_login_url }}"
+  data-register-url="{{ routes.account_register_url }}"
+  data-rewards-url="https://account.shopcarbon.com/pages/01a10b52-0216-71b7-9eed-6d9ea4827972"
+  data-cart-url="{{ routes.cart_url }}"
+>
+  <button type="button" class="crw__launcher" aria-expanded="false" aria-controls="crw-panel">
+    <svg class="crw__crown" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18M4 16 3 7l5 4 4-7 4 7 5-4-1 9z"/></svg>
+    <span class="crw__launcher-label">{% if customer and customer.metafields.loyalty.balance.value %}{{ customer.metafields.loyalty.balance.value }} pts{% else %}Rewards{% endif %}</span>
+  </button>
+  <div class="crw__backdrop" data-crw-close hidden></div>
+  <section id="crw-panel" class="crw__panel" role="dialog" aria-modal="false" aria-label="Carbon Rewards" tabindex="-1" hidden>
+    <header class="crw__head">
+      <span class="crw__brand">CARBON <b>REWARDS</b></span>
+      <button type="button" class="crw__close" data-crw-close aria-label="Close rewards">&times;</button>
+    </header>
+    <div class="crw__body" data-crw-body><p class="crw__muted">Loading…</p></div>
+  </section>
+</carbon-rewards-widget>
+
+<style>
+  .crw { position: fixed; left: 16px; bottom: 16px; z-index: 50; font-family: inherit; line-height: 1.4; }
+  .crw__launcher {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border: 0; border-radius: 999px; cursor: pointer;
+    color: #fff; font: inherit; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    background: #7b2cff linear-gradient(90deg, #7b2cff, #d946ef); box-shadow: 0 6px 20px rgba(123, 44, 255, .35);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .crw__launcher:hover, .crw__launcher:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(217, 70, 239, .45); }
+  .crw__launcher:focus-visible, .crw button:focus-visible, .crw a:focus-visible { outline: 2px solid #d946ef; outline-offset: 2px; }
+  .crw__backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: -1; }
+  .crw__panel {
+    position: absolute; left: 0; bottom: calc(100% + 12px); width: 360px; max-height: min(620px, calc(100vh - 110px));
+    display: flex; flex-direction: column; background: #fff; color: #111; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+  }
+  .crw__panel[hidden], .crw__backdrop[hidden] { display: none; }
+  .crw__panel:focus { outline: none; }
+  /* Open panel sits above third-party floating buttons (chat, accessibility). */
+  .crw--open { z-index: 2147483647; }
+  .crw__head { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: #000; color: #fff; }
+  .crw__brand { font-weight: 800; letter-spacing: .2em; font-size: 14px; }
+  .crw__brand b { color: #d946ef; }
+  .crw__close { background: none; border: 0; color: #fff; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .crw__body { padding: 18px; overflow-y: auto; font-size: 14px; }
+  .crw__body p { margin: 0 0 10px; }
+  .crw__muted { color: #666; font-size: 13px; }
+  .crw__hi { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 0 0 2px !important; }
+  .crw__points { font-size: 38px; font-weight: 800; margin: 0 !important; line-height: 1.1; }
+  .crw__points small { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+  .crw__card { border: 1px solid #eee; border-radius: 8px; padding: 14px; margin: 14px 0 0; }
+  .crw__card h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+  .crw__bar { height: 6px; background: #eee; border-radius: 99px; overflow: hidden; margin: 8px 0 6px; }
+  .crw__bar span { display: block; height: 100%; background: linear-gradient(90deg, #7b2cff, #d946ef); }
+  .crw__row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .crw__btn {
+    flex: 1 1 auto; min-width: 80px; padding: 11px 12px; border: 0; border-radius: 6px; cursor: pointer; text-align: center; text-decoration: none;
+    color: #fff; font: inherit; font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+    background: #7b2cff linear-gradient(90deg, #7b2cff, #d946ef);
+  }
+  .crw__btn--ghost { background: #fff; color: #111; border: 1px solid #111; }
+  .crw__btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .crw__list { list-style: none; margin: 0 0 14px; padding: 0; }
+  .crw__list li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f2f2f2; }
+  .crw__list li b { min-width: 74px; color: #7b2cff; }
+  .crw__ref { display: flex; gap: 8px; align-items: center; }
+  .crw__ref input { flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 9px 10px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
+  .crw__msg { color: #b00020; font-size: 13px; margin-top: 8px !important; }
+  .crw__msg:empty { display: none; }
+  .crw__ok { color: #0a7a3d; font-weight: 700; }
+  .crw__link { display: inline-block; margin-top: 14px; color: #111; font-weight: 700; text-decoration: underline; }
+  @media (max-width: 749px) {
+    .crw { left: 12px; bottom: 12px; }
+    .crw__launcher { padding: 10px 14px; font-size: 12px; }
+    .crw__panel { position: fixed; left: 0; right: 0; bottom: 0; width: auto; max-height: 85vh; border-radius: 14px 14px 0 0; }
+    /* keep the last buttons clear of floating icons in the bottom corners */
+    .crw__body { padding-bottom: 76px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .crw__launcher { transition: none; } }
+</style>
+<script src="{{ 'carbon-rewards-core.js' | asset_url }}" defer></script>
+<script>
+  (() => {
+    const define = () => {
+      if (customElements.get('carbon-rewards-widget')) return;
+      const CR = window.CarbonRewards;
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+      class CarbonRewardsWidget extends HTMLElement {
+        connectedCallback() {
+          this.btn = this.querySelector('.crw__launcher');
+          this.panel = this.querySelector('.crw__panel');
+          this.backdrop = this.querySelector('.crw__backdrop');
+          this.body = this.querySelector('[data-crw-body]');
+          this.btn.addEventListener('click', () => (this.panel.hidden ? this.open() : this.close()));
+          this.addEventListener('click', (e) => { if (e.target.closest('[data-crw-close]')) this.close(); });
+          document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.panel.hidden) { this.close(); this.btn.focus(); } });
+          this.body.addEventListener('click', (e) => this.onClick(e));
+          document.addEventListener('carbon-rewards:changed', () => { if (!this.panel.hidden) this.load(); });
+        }
+        open() {
+          this.panel.hidden = false;
+          this.classList.add('crw--open');
+          this.backdrop.hidden = !window.matchMedia('(max-width: 749px)').matches;
+          this.btn.setAttribute('aria-expanded', 'true');
+          this.load();
+          this.panel.focus();
+        }
+        close() {
+          this.panel.hidden = true;
+          this.classList.remove('crw--open');
+          this.backdrop.hidden = true;
+          this.btn.setAttribute('aria-expanded', 'false');
+        }
+        async load() {
+          try {
+            if (this.dataset.signedIn) {
+              [this.data, this.cart] = await Promise.all([CR.api('balance'), CR.getCart()]);
+              if (!this.data.linked) return this.renderGuest(await CR.api('program'), true);
+              this.querySelector('.crw__launcher-label').textContent = this.data.balance + ' pts';
+              this.renderMember();
+            } else {
+              this.renderGuest(await CR.api('program'), false);
+            }
+          } catch (e) {
+            this.body.innerHTML = '<p class="crw__muted">Rewards are unavailable right now. Please try again in a moment.</p>';
+          }
+        }
+        renderGuest(p, signedIn) {
+          const money = CR.money;
+          const top = p.tiers[p.tiers.length - 1];
+          this.body.innerHTML =
+            '<p class="crw__points" style="font-size:24px">Join the Carbon Crew</p>' +
+            '<p class="crw__muted">Earn points every time you shop — online or in store.</p>' +
+            '<ul class="crw__list">' +
+              '<li><b>' + p.earn_rate_per_dollar + ' pt / $1</b><span>on every purchase</span></li>' +
+              '<li><b>100 pts</b><span>= ' + money(100 / p.redeem_points_per_dollar) + ' off · up to ' + money(p.max_redeem_dollars_per_order) + ' per purchase</span></li>' +
+              (p.birthday_bonus_points ? '<li><b>' + p.birthday_bonus_points + ' pts</b><span>on your birthday</span></li>' : '') +
+              (top ? '<li><b>Up to ' + top.multiplier + '×</b><span>points as you reach ' + p.tiers.slice(1).map((t) => esc(t.name)).join(', ') + '</span></li>' : '') +
+              '<li><b>' + p.referral.you_get + ' pts</b><span>for every friend you refer</span></li>' +
+            '</ul>' +
+            (signedIn
+              ? '<p class="crw__muted">Your points will appear here after your first purchase.</p>'
+              : '<div class="crw__row"><a class="crw__btn" href="' + esc(this.dataset.registerUrl) + '">Join now</a>' +
+                '<a class="crw__btn crw__btn--ghost" href="' + esc(this.dataset.loginUrl) + '">Sign in</a></div>');
+        }
+        renderMember() {
+          const d = this.data, money = CR.money;
+          const subtotal = Number(this.cart.items_subtotal_price || 0) / 100;
+          const applied = CR.rewardCodeIn(this.cart);
+          const active = d.codes[0];
+          const t = d.tier;
+          let redeem;
+          if (active && applied === active.code.toUpperCase()) {
+            redeem = '<p class="crw__ok">✓ ' + money(active.dollars) + ' off is applied to your cart</p>' +
+              '<div class="crw__row"><a class="crw__btn" href="' + esc(this.dataset.cartUrl) + '">View cart</a>' +
+              '<button type="button" class="crw__btn crw__btn--ghost" data-crw-cancel>Remove &amp; return points</button></div>';
+          } else if (active) {
+            const enough = subtotal >= active.min_subtotal;
+            redeem = '<p>Your ' + money(active.dollars) + ' reward is ready.</p>' +
+              '<div class="crw__row"><button type="button" class="crw__btn" data-crw-apply ' + (enough ? '' : 'disabled') + '>Apply to cart</button>' +
+              '<button type="button" class="crw__btn crw__btn--ghost" data-crw-cancel>Cancel &amp; get points back</button></div>' +
+              (enough ? '' : '<p class="crw__muted" style="margin-top:8px">Add ' + money(active.min_subtotal - subtotal) + ' more in items to use it.</p>');
+          } else {
+            const opts = CR.options(d, subtotal);
+            redeem = opts.length
+              ? '<div class="crw__row">' + opts.map((o) =>
+                  '<button type="button" class="crw__btn" data-crw-redeem="' + o.points + '"' + (o.ok ? '' : ' disabled title="Needs ' + money(o.min) + '+ in your cart"') + '>' + money(o.dollars) + ' off</button>').join('') + '</div>' +
+                '<p class="crw__muted" style="margin-top:8px">Applied straight to your cart · items only, not shipping' +
+                (opts.some((o) => !o.ok) ? ' · bigger rewards need more in your cart' : '') + '.</p>'
+              : '<p class="crw__muted">' + Math.max(1, d.rules.redeem_increment_points - d.balance) + ' more points to unlock $10 off.</p>';
+          }
+          const pct = t && t.next ? Math.min(100, Math.round(100 * t.progress / (t.progress + t.next.needed))) : 100;
+          const toNext = t && t.next
+            ? (t.metric === 'points' ? Math.ceil(t.next.needed) + ' more points' : t.metric === 'visits' ? Math.ceil(t.next.needed) + ' more purchases' : 'Spend ' + money(Math.ceil(t.next.needed)) + ' more') + ' to reach ' + esc(t.next.name)
+            : "You're at our top tier — thank you!";
+          this.body.innerHTML =
+            '<p class="crw__hi">Hi ' + esc(d.first_name || this.dataset.firstName || 'there') + ', you have</p>' +
+            '<p class="crw__points">' + d.balance.toLocaleString() + ' <small>points</small></p>' +
+            (t ? '<div class="crw__card"><h3>' + esc(t.name) + ' · ' + t.multiplier + '× points</h3><div class="crw__bar"><span style="width:' + pct + '%"></span></div><p class="crw__muted" style="margin:0">' + toNext + '</p></div>' : '') +
+            '<div class="crw__card"><h3>Use your points</h3>' + redeem + '<p class="crw__msg" data-crw-msg role="status"></p></div>' +
+            (d.referral ? '<div class="crw__card"><h3>Refer a friend</h3><p class="crw__muted">They get ' + d.referral.friend_gets + ' points on their first ' + money(d.referral.min_purchase) + '+ order, you get ' + d.referral.you_get + '.</p>' +
+              '<div class="crw__ref"><input type="text" readonly value="' + esc(d.referral.url) + '" aria-label="Your referral link"><button type="button" class="crw__btn" style="flex:0 0 auto" data-crw-copy>Copy</button></div></div>' : '') +
+            '<a class="crw__link" href="' + esc(this.dataset.rewardsUrl) + '">See all your rewards →</a>';
+        }
+        async onClick(e) {
+          const t = e.target.closest('button');
+          if (!t || t.disabled) return;
+          if (t.hasAttribute('data-crw-copy')) {
+            const input = this.body.querySelector('.crw__ref input');
+            try { await navigator.clipboard.writeText(input.value); } catch (err) { input.select(); document.execCommand('copy'); }
+            t.textContent = 'Copied!';
+            setTimeout(() => (t.textContent = 'Copy'), 1600);
+            return;
+          }
+          const msg = this.body.querySelector('[data-crw-msg]');
+          if (msg) msg.textContent = '';
+          this.body.querySelectorAll('button').forEach((b) => (b.disabled = true));
+          try {
+            if (t.dataset.crwRedeem) {
+              const { coupon } = await CR.api('redeem', { points: Number(t.dataset.crwRedeem) });
+              this.cart = await CR.setRewardCode(this.cart, coupon.code);
+            } else if (t.hasAttribute('data-crw-apply')) {
+              this.cart = await CR.setRewardCode(this.cart, this.data.codes[0].code);
+            } else if (t.hasAttribute('data-crw-cancel')) {
+              await CR.api('cancel', { code: this.data.codes[0].code });
+              this.cart = await CR.setRewardCode(this.cart, '');
+            }
+            await this.load();
+          } catch (err) {
+            await this.load();
+            const m = this.body.querySelector('[data-crw-msg]');
+            if (m) m.textContent = err.message;
+          }
+        }
+      }
+      customElements.define('carbon-rewards-widget', CarbonRewardsWidget);
+    };
+    if (window.CarbonRewards) define();
+    else document.addEventListener('DOMContentLoaded', define);
+  })();
+</script>
+{%- endunless -%}
