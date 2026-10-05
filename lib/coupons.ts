@@ -14,7 +14,12 @@ import { shopifyGraphQL } from "./shopify";
  *   - value = points / redeem_points_per_dollar
  *   - max_redeem_dollars_per_order caps a single code ($30); codes don't
  *     combine with each other, so that's also the cap per purchase
- *   - max_redeem_pct_of_order → minimum subtotal on the code
+ *   - minimum item subtotal = max(code value, value / max_redeem_pct_of_order)
+ *     — never less than the code itself, so points can't exceed the items
+ *     they're spent on (no leftover "credit"). It's an order discount on
+ *     merchandise, so shipping is never paid with points.
+ *   - one active code per member; cancelCoupon() returns its points so the
+ *     member can pick a different reward
  *   - allow_stacking_with_codes → combinesWith
  *   - coupon_ttl_hours → endsAt; unused codes are credited back on expiry
  */
@@ -32,7 +37,7 @@ export type IssuedCoupon = {
   code: string;
   points: number;
   dollars: number;
-  min_subtotal: number | null;
+  min_subtotal: number;
   expires_at: string;
   new_balance: number;
 };
@@ -57,10 +62,12 @@ export async function issueCoupon(
       `You can take up to $${s.max_redeem_dollars_per_order} off per purchase.`,
     );
   }
-  const minSubtotal =
+  const minSubtotal = Math.max(
+    dollars,
     s.max_redeem_pct_of_order > 0 && s.max_redeem_pct_of_order < 100
       ? Math.ceil((dollars * 100) / s.max_redeem_pct_of_order)
-      : null;
+      : 0,
+  );
   const expiresAt = new Date(Date.now() + s.coupon_ttl_hours * 3600_000);
   const code = `CR-${randomBytes(4).toString("hex").toUpperCase()}`;
 
@@ -69,6 +76,19 @@ export async function issueCoupon(
     await client.query(`SELECT id FROM pos_customers WHERE id = $1 FOR UPDATE`, [customerId]);
     const balance = await balanceOf(client, customerId);
     if (balance < points) throw new RedeemError("insufficient_balance", "Not enough points.", 402);
+    const open = await client.query(
+      `SELECT 1 FROM loyalty_coupons
+        WHERE customer_id = $1 AND used_at IS NULL AND refunded_ledger_id IS NULL AND expires_at > now()
+        LIMIT 1`,
+      [customerId],
+    );
+    if (open.rows[0]) {
+      throw new RedeemError(
+        "code_active",
+        "You already have an active code. Cancel it first to choose a different reward.",
+        409,
+      );
+    }
 
     const led = await insertLedger(client, {
       customer_id: customerId,
@@ -107,9 +127,7 @@ export async function issueCoupon(
             value: { discountAmount: { amount: dollars, appliesOnEachItem: false } },
             items: { all: true },
           },
-          minimumRequirement: minSubtotal
-            ? { subtotal: { greaterThanOrEqualToSubtotal: minSubtotal } }
-            : null,
+          minimumRequirement: { subtotal: { greaterThanOrEqualToSubtotal: minSubtotal } },
           combinesWith: {
             orderDiscounts: s.allow_stacking_with_codes,
             productDiscounts: s.allow_stacking_with_codes,
@@ -138,6 +156,60 @@ export async function issueCoupon(
       expires_at: expiresAt.toISOString(),
       new_balance: led.new_balance,
     };
+  });
+}
+
+/**
+ * Member cancels an unused code to pick a different reward. The code is
+ * deactivated in Shopify first so it can't be spent while we refund; if
+ * Shopify shows it was already used, it's marked used and nothing returns.
+ */
+export async function cancelCoupon(customerId: number, code: string): Promise<{ new_balance: number }> {
+  const pool = getPool();
+  const r = await pool.query<{ id: string; shopify_gid: string; discount_gid: string; points: number }>(
+    `SELECT id::text, shopify_gid, discount_gid, points FROM loyalty_coupons
+      WHERE customer_id = $1 AND code = $2 AND used_at IS NULL AND refunded_ledger_id IS NULL`,
+    [customerId, code.trim().toUpperCase()],
+  );
+  const c = r.rows[0];
+  if (!c) throw new RedeemError("not_found", "That code is no longer active.", 404);
+
+  const off = await shopifyGraphQL<{
+    discountCodeDeactivate: {
+      codeDiscountNode: { codeDiscount: { asyncUsageCount?: number } } | null;
+      userErrors: { message: string }[];
+    };
+  }>(
+    `mutation Off($id: ID!) {
+       discountCodeDeactivate(id: $id) {
+         codeDiscountNode { codeDiscount { ... on DiscountCodeBasic { asyncUsageCount } } }
+         userErrors { message }
+       }
+     }`,
+    { id: c.discount_gid },
+  );
+  const node = off.discountCodeDeactivate.codeDiscountNode;
+  if (!node) {
+    console.error("[cancelCoupon]", off.discountCodeDeactivate.userErrors);
+    throw new RedeemError("shopify_error", "Couldn't cancel that code — please try again.", 502);
+  }
+  if ((node.codeDiscount.asyncUsageCount ?? 0) > 0) {
+    await pool.query(`UPDATE loyalty_coupons SET used_at = COALESCE(used_at, now()) WHERE id = $1`, [c.id]);
+    throw new RedeemError("already_used", "That code was already used on an order.", 409);
+  }
+
+  return withTransaction(async (client) => {
+    const led = await insertLedger(client, {
+      customer_id: customerId,
+      shopify_gid: c.shopify_gid,
+      delta_points: c.points,
+      reason: "adjustment",
+      source: "system",
+      source_ref: `coupon-cancelled:${code.trim().toUpperCase()}`,
+      amount_basis: null,
+    });
+    await client.query(`UPDATE loyalty_coupons SET refunded_ledger_id = $2 WHERE id = $1`, [c.id, led.id]);
+    return { new_balance: led.new_balance };
   });
 }
 

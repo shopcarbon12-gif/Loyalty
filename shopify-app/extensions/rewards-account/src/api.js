@@ -21,10 +21,43 @@ async function call(path, init = {}) {
   return body;
 }
 
-export const getSummary = () => call('/api/account/summary');
+// The checkout & accounts editor previews as a fake customer, so Shopify's
+// session token carries no customer id and the backend rightly refuses it.
+// Show labelled sample data there instead so the layout can be placed.
+export const inEditor = () => Boolean(shopify.extension.editor);
+
+const SAMPLE = {
+  linked: true,
+  preview: true,
+  first_name: 'Preview',
+  balance: 250,
+  activity: [
+    {delta_points: 120, reason: 'sale', source: 'shopify', created_at: new Date().toISOString()},
+    {delta_points: 25, reason: 'signup_bonus', source: 'system', created_at: new Date().toISOString()},
+  ],
+  codes: [],
+  rules: {
+    live: true,
+    min_redeem_points: 100,
+    redeem_increment_points: 100,
+    redeem_points_per_dollar: 10,
+    earn_rate_per_dollar: 1,
+    max_redeem_pct_of_order: 50,
+    max_redeem_dollars_per_order: 30,
+  },
+};
+
+export const getSummary = () => (inEditor() ? Promise.resolve(SAMPLE) : call('/api/account/summary'));
 
 export const redeem = (points) =>
-  call('/api/account/redeem', {method: 'POST', body: JSON.stringify({points})});
+  inEditor()
+    ? Promise.reject(new Error('Redeeming is disabled in the editor preview.'))
+    : call('/api/account/redeem', {method: 'POST', body: JSON.stringify({points})});
+
+export const cancelCode = (code) =>
+  inEditor()
+    ? Promise.reject(new Error('Cancelling is disabled in the editor preview.'))
+    : call('/api/account/cancel', {method: 'POST', body: JSON.stringify({code})});
 
 // $10 steps up to the per-purchase cap, limited by balance.
 export function redeemOptions(summary) {

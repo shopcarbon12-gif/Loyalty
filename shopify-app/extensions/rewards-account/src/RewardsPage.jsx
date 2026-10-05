@@ -1,7 +1,7 @@
 import '@shopify/ui-extensions/preact';
 import {render} from 'preact';
 import {useEffect, useState} from 'preact/hooks';
-import {getSummary, reasonLabel, redeem, redeemOptions} from './api.js';
+import {cancelCode, getSummary, reasonLabel, redeem, redeemOptions} from './api.js';
 
 export default async () => {
   render(<RewardsPage />, document.body);
@@ -12,6 +12,7 @@ function RewardsPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(0);
   const [issued, setIssued] = useState(null);
+  const [cancelling, setCancelling] = useState('');
 
   const load = () =>
     getSummary()
@@ -19,7 +20,13 @@ function RewardsPage() {
         setSummary(s);
         setError('');
       })
-      .catch((e) => setError(e.message));
+      .catch((e) =>
+        setError(
+          e.code === 'unauthorized'
+            ? "We couldn't load your rewards right now. Please sign out and back in, then try again."
+            : e.message,
+        ),
+      );
 
   useEffect(() => {
     load();
@@ -39,6 +46,21 @@ function RewardsPage() {
     }
   }
 
+  async function onCancel(code) {
+    setCancelling(code);
+    setError('');
+    try {
+      await cancelCode(code);
+      setIssued(null);
+      await load();
+    } catch (e) {
+      setError(e.message);
+      await load();
+    } finally {
+      setCancelling('');
+    }
+  }
+
   if (!summary && !error) {
     return (
       <s-page heading="Carbon Rewards">
@@ -52,9 +74,16 @@ function RewardsPage() {
   const options = summary ? redeemOptions(summary) : [];
   const rules = summary?.rules;
   const step = rules?.redeem_increment_points ?? 100;
+  const hasActiveCode = summary?.codes?.length > 0;
 
   return (
     <s-page heading="Carbon Rewards" subheading="1 point for every $1 · every 100 points = $10 off">
+      {summary?.preview && (
+        <s-banner tone="info" heading="Editor preview">
+          <s-paragraph>Sample data — customers see their own points here.</s-paragraph>
+        </s-banner>
+      )}
+
       {error && (
         <s-banner tone="critical" heading="We couldn't complete that">
           <s-paragraph>{error}</s-paragraph>
@@ -65,10 +94,9 @@ function RewardsPage() {
         <s-banner tone="success" heading={`Your $${issued.dollars} code is ready`}>
           <s-stack gap="base">
             <s-paragraph>
-              Use it at checkout before {formatDate(issued.expires_at)}
-              {issued.min_subtotal ? ` on orders of $${issued.min_subtotal} or more` : ''}.
+              Enter it at checkout before {formatDate(issued.expires_at)} on items totaling $
+              {issued.min_subtotal} or more. Changed your mind? Cancel it below to get your points back.
             </s-paragraph>
-            <CodeRow code={issued.code} />
           </s-stack>
         </s-banner>
       )}
@@ -86,7 +114,7 @@ function RewardsPage() {
         </s-section>
       )}
 
-      {summary && rules?.live && options.length > 0 && (
+      {summary && rules?.live && options.length > 0 && !hasActiveCode && (
         <s-section heading="Redeem points">
           <s-stack gap="base">
             <s-paragraph>
@@ -110,19 +138,33 @@ function RewardsPage() {
         </s-section>
       )}
 
-      {summary?.codes?.length > 0 && (
-        <s-section heading="Your active codes">
+      {hasActiveCode && (
+        <s-section heading="Your active code">
           <s-stack gap="base">
             {summary.codes.map((c) => (
               <s-stack key={c.code} gap="small-200">
-                <s-text>
-                  ${c.dollars} off · expires {formatDate(c.expires_at)}
-                  {c.min_subtotal ? ` · orders $${c.min_subtotal}+` : ''}
+                <s-text type="strong">${c.dollars} off your items</s-text>
+                <s-text color="subdued">
+                  For items totaling ${c.min_subtotal} or more · shipping not included · expires{' '}
+                  {formatDate(c.expires_at)}
                 </s-text>
                 <CodeRow code={c.code} />
+                <s-stack direction="inline">
+                  <s-button
+                    variant="secondary"
+                    tone="critical"
+                    loading={cancelling === c.code}
+                    onClick={() => onCancel(c.code)}
+                  >
+                    Cancel code &amp; return {c.points} points
+                  </s-button>
+                </s-stack>
               </s-stack>
             ))}
-            <s-text color="subdued">Unused codes return their points when they expire.</s-text>
+            <s-text color="subdued">
+              One code at a time. Cancel this one to choose a different reward — unused codes also
+              return their points automatically when they expire.
+            </s-text>
           </s-stack>
         </s-section>
       )}
@@ -135,7 +177,7 @@ function RewardsPage() {
                 <s-stack gap="none">
                   <s-text>
                     {a.source === 'system' && a.reason === 'adjustment'
-                      ? 'Unused code — points returned'
+                      ? 'Code cancelled or expired — points returned'
                       : reasonLabel(a.reason)}
                   </s-text>
                   <s-text color="subdued">{formatDate(a.created_at)}</s-text>
