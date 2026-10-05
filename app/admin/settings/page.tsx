@@ -36,6 +36,7 @@ export default async function SettingsPage() {
               live                         = $15,
               max_redeem_dollars_per_order = $16,
               coupon_ttl_hours             = $17,
+              emails_enabled               = $18,
               updated_at                   = now()
         WHERE id = 1`,
       [
@@ -56,6 +57,7 @@ export default async function SettingsPage() {
         bool("live"),
         num("max_redeem_dollars_per_order"),
         num("coupon_ttl_hours"),
+        bool("emails_enabled"),
       ],
     );
     clearSettingsCache();
@@ -94,6 +96,10 @@ export default async function SettingsPage() {
                    type="number" defaultValue={settings.coupon_ttl_hours} />
             <Toggle label="Allow stacking with other discount codes" name="allow_stacking_with_codes"
                     defaultChecked={settings.allow_stacking_with_codes} />
+          </Group>
+          <Group title="Member emails">
+            <Toggle label="Send member emails (points earned, reward codes, birthday, tier, referral)" name="emails_enabled"
+                    defaultChecked={settings.emails_enabled} />
           </Group>
           <Group title="Bonuses">
             <Field label="Signup bonus (pts)" name="signup_bonus_points"

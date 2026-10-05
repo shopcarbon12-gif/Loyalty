@@ -67,7 +67,7 @@ export async function GET(req: Request) {
       if (li.isGiftCard) eligible -= Number(li.originalUnitPriceSet.shopMoney.amount) * li.quantity;
     }
   }
-  const points = s.live ? await pointsForEligible(Math.max(0, eligible)) : 0;
+  const points = s.live ? await pointsForEligible(Math.max(0, eligible), member.rows[0]?.id ?? null) : 0;
   return corsJson({ status: "pending", points, balance });
 }
 

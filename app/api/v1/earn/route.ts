@@ -9,6 +9,7 @@ import {
   withTransaction,
 } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
+import { queueEmail } from "@/lib/email";
 
 const schema = z.object({
   idempotency_key: z.string().min(8).max(128),
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const points = await pointsForEligible(data.eligible_amount);
+  const points = await pointsForEligible(data.eligible_amount, data.customer_id);
   const sourceRef = `pos:sale:${data.sale_id}`;
   const requestHash = JSON.stringify({
     customer_id: data.customer_id,
@@ -159,6 +160,33 @@ export async function POST(req: Request) {
       } catch (refErr) {
         // Referral logic is best-effort — never fail the sale's earn over it
         console.error("[/api/v1/earn] referral payout error", refErr);
+      }
+
+      // Member emails — queued in this transaction, sent by /api/cron/send-emails.
+      if (points > 0) {
+        await queueEmail(client, {
+          customerId: data.customer_id,
+          template: "points_earned",
+          data: { points, where: "in-store" },
+          ledgerId: led.id,
+          dedupeKey: `earned:${sourceRef}`,
+        });
+      }
+      if (referralPayout) {
+        await queueEmail(client, {
+          customerId: referralPayout.referrer_id,
+          template: "referral_reward",
+          data: { points: settings.referral_reward_points },
+          ledgerId: referralPayout.referrer_ledger_id,
+          dedupeKey: `referral-reward:pos:${data.sale_id}`,
+        });
+        await queueEmail(client, {
+          customerId: data.customer_id,
+          template: "referral_welcome",
+          data: { points: settings.referee_earns_points },
+          ledgerId: referralPayout.referee_ledger_id,
+          dedupeKey: `referral-welcome:pos:${data.sale_id}`,
+        });
       }
 
       const responseBody = {

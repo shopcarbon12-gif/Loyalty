@@ -22,6 +22,7 @@ export type LoyaltySettings = {
   metafield_namespace: string;
   metafield_key: string;
   live: boolean;
+  emails_enabled: boolean;          // added in migration 010
 };
 
 let _cache: { value: LoyaltySettings; expires: number } | null = null;
@@ -54,7 +55,8 @@ export async function getSettings(): Promise<LoyaltySettings> {
             points_never_expire,
             metafield_namespace,
             metafield_key,
-            live
+            live,
+            emails_enabled
        FROM loyalty_settings WHERE id = 1`,
   );
   if (!r.rows[0]) throw new Error("loyalty_settings missing — run migrations");

@@ -1,6 +1,7 @@
 import { PoolClient } from "pg";
 import { getPool, withTransaction } from "./db";
 import { getSettings } from "./settings";
+import { earnMultiplier } from "./tiers";
 
 /**
  * Domain logic for the loyalty service.
@@ -34,14 +35,20 @@ export async function getBalance(customerId: number): Promise<number> {
 }
 
 /**
- * floor(eligible × earn_rate). Tax / gift-card-purchase exclusion is the
- * caller's responsibility — they pass a pre-cleaned `eligible_amount` so
- * we don't reach into pos_sales schemas.
+ * floor(eligible × earn_rate × tier multiplier). Tax / gift-card-purchase
+ * exclusion is the caller's responsibility — they pass a pre-cleaned
+ * `eligible_amount` so we don't reach into pos_sales schemas. Pass the
+ * member to apply their tier's earn_multiplier (lib/tiers.ts).
  */
-export async function pointsForEligible(eligible: number): Promise<number> {
+export async function pointsForEligible(
+  eligible: number,
+  customerId: number | null = null,
+  db?: PoolClient,
+): Promise<number> {
   const s = await getSettings();
   if (eligible <= 0) return 0;
-  return Math.floor(eligible * s.earn_rate_per_dollar);
+  const mult = await earnMultiplier(customerId, db);
+  return Math.floor(eligible * s.earn_rate_per_dollar * mult);
 }
 
 /**

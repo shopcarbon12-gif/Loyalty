@@ -3,6 +3,7 @@ import { getPool } from "@/lib/db";
 import { isAuthorizedServerCall } from "@/lib/auth";
 import { dollarsForPoints, getBalance } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
+import { memberTier } from "@/lib/tiers";
 
 /**
  * GET /api/v1/customers/:id/balance
@@ -35,11 +36,13 @@ export async function GET(
     [customerId],
   );
   const s = await getSettings();
+  const t = await memberTier(customerId);
   return NextResponse.json({
     customer_id: customerId,
     balance,
     dollars_value: dollars,
-    tier: null, // populated in B6
+    tier: t.tier ? t.tier.name : null,
+    earn_multiplier: t.tier?.earn_multiplier ?? 1,
     recent: recent.rows,
     rules: {
       live: s.live,

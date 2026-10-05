@@ -1,6 +1,8 @@
 import { getPool } from "./db";
 import { dollarsForPoints, getBalance } from "./loyalty";
+import { referralCode, shareUrl } from "./referrals";
 import { getSettings } from "./settings";
+import { memberTier } from "./tiers";
 
 /**
  * What a member sees about their rewards — shared by the customer-account
@@ -38,9 +40,26 @@ export async function memberSummary(member: { id: number; first_name: string | n
       [member.id],
     ),
   ]);
+  const [t, code] = await Promise.all([memberTier(member.id), referralCode(member.id)]);
   return {
     linked: true,
     first_name: member.first_name,
+    tier: t.tier && {
+      code: t.tier.code,
+      name: t.tier.name,
+      multiplier: t.tier.earn_multiplier,
+      perks: t.tier.perks,
+      metric: s.tier_qualifying_metric, // amount | points | visits (lifetime)
+      progress: t.metric,
+      next: t.next && { name: t.next.name, needed: t.toNext, multiplier: t.next.earn_multiplier },
+    },
+    referral: code && {
+      code,
+      url: shareUrl(code),
+      you_get: s.referral_reward_points,
+      friend_gets: s.referee_earns_points,
+      min_purchase: Number(s.referral_min_purchase),
+    },
     balance,
     dollars_value: await dollarsForPoints(Math.max(0, balance)),
     activity: activity.rows,

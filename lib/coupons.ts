@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { getPool, withTransaction } from "./db";
 import { dollarsForPoints, insertLedger } from "./loyalty";
 import { getSettings } from "./settings";
+import { queueEmail } from "./email";
 import { shopifyGraphQL } from "./shopify";
 
 /**
@@ -152,6 +153,18 @@ export async function issueCoupon(
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [customerId, customerGid, code, res.codeDiscountNode.id, points, dollars, minSubtotal, led.id, expiresAt],
     );
+    await queueEmail(client, {
+      customerId,
+      template: "reward_code",
+      data: {
+        code,
+        dollars,
+        min_subtotal: minSubtotal,
+        expires: expiresAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET",
+      },
+      ledgerId: led.id,
+      dedupeKey: `reward-code:${code}`,
+    });
     return {
       code,
       points,

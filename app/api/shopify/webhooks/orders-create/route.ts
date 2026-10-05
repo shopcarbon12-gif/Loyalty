@@ -7,6 +7,8 @@ import {
 } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
 import { markCouponsUsed } from "@/lib/coupons";
+import { queueEmail } from "@/lib/email";
+import { referralForOnlineOrder } from "@/lib/referrals";
 import { upsertShopifyOrder, type ShopifyOrderPayload } from "@/lib/orders";
 import {
   resolveShopifyCustomer,
@@ -73,7 +75,6 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
   }
 
   const eligible = computeEligible(order, settings);
-  const points = await pointsForEligible(eligible);
   const sourceRef = order.admin_graphql_api_id; // gid://shopify/Order/123
 
   try {
@@ -81,7 +82,10 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
       // Link (or create) the member so online orders always credit
       // someone — see lib/shopify-customers.ts.
       const { customerId } = await resolveShopifyCustomer(client, customerGid, order.customer ?? {});
-      return insertLedger(client, {
+      // Points use the member's tier multiplier, so they're computed once
+      // the member is known.
+      const points = await pointsForEligible(eligible, customerId, client);
+      const led = await insertLedger(client, {
         customer_id: customerId,
         shopify_gid: customerGid,
         delta_points: points,
@@ -90,11 +94,32 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
         source_ref: sourceRef,
         amount_basis: eligible,
       });
+      // "You earned N points" email (the row only exists for members with an email).
+      if (points > 0) {
+        await queueEmail(client, {
+          customerId,
+          template: "points_earned",
+          data: { points, where: "online" },
+          ledgerId: led.id,
+          dedupeKey: `earned:${sourceRef}`,
+        });
+      }
+      // First qualifying order through a friend's link pays both sides.
+      const refCode =
+        order.note_attributes?.find((a) => a.name === "carbon_ref")?.value?.trim() || null;
+      await referralForOnlineOrder(client, {
+        refereeId: customerId,
+        refereeGid: customerGid,
+        orderGid: sourceRef,
+        eligible,
+        refCode,
+      });
+      return { ...led, points };
     });
     return NextResponse.json({
       ok: true,
       ledger_id: result.id,
-      points_awarded: points,
+      points_awarded: result.points,
       new_balance: result.new_balance,
     });
   } catch (err) {
@@ -108,6 +133,7 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
 type ShopifyOrder = {
   admin_graphql_api_id: string;
   source_name?: string;
+  note_attributes?: Array<{ name?: string; value?: string }>;
   discount_codes?: Array<{ code?: string }>;
   subtotal_price?: string;
   total_discounts?: string;
