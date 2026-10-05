@@ -43,6 +43,14 @@ export async function queueEmail(
 export async function sendQueuedEmails(limit = 40): Promise<{ sent: number; failed: number; skipped: number }> {
   const pool = getPool();
   const s = await getSettings();
+  // Emails go out only when the owner has switched them on in admin
+  // settings. While off, the queue is held (nothing sent, nothing dropped).
+  if (!s.emails_enabled) return { sent: 0, failed: 0, skipped: 0 };
+  // Don't send stale news when they're switched back on.
+  await pool.query(
+    `UPDATE loyalty_comms_log SET status = 'failed', error_message = 'expired: queued more than 48h ago'
+      WHERE status = 'queued' AND created_at < now() - interval '48 hours'`,
+  );
   const key = process.env.RESEND_API_KEY?.trim();
   const from = process.env.LOYALTY_FROM_EMAIL?.trim() || "Carbon Rewards <rewards@carbonjeanscompany.com>";
   const rows = await pool.query<{
@@ -58,10 +66,9 @@ export async function sendQueuedEmails(limit = 40): Promise<{ sent: number; fail
   );
   let sent = 0, failed = 0, skipped = 0;
   for (const r of rows.rows) {
-    // Switched off, or no provider: don't send, don't keep retrying.
-    if (!s.emails_enabled || !key) {
-      await pool.query(`UPDATE loyalty_comms_log SET status = 'failed', error_message = $2 WHERE id = $1`,
-        [r.id, !key ? "RESEND_API_KEY missing" : "emails disabled in settings"]);
+    // No provider configured: don't keep retrying.
+    if (!key) {
+      await pool.query(`UPDATE loyalty_comms_log SET status = 'failed', error_message = 'RESEND_API_KEY missing' WHERE id = $1`, [r.id]);
       skipped++;
       continue;
     }
