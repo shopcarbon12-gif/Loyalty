@@ -16,8 +16,8 @@ import {
  * POST /api/shopify/webhooks/orders-create
  *
  * Shopify fires this when an online order is placed. We compute the
- * eligible amount (subtotal − discount − gift-card lines, tax NOT
- * counted) and write a ledger row.
+ * eligible amount (subtotal after discounts − gift-card lines, tax and
+ * shipping NOT counted) and write a ledger row.
  *
  * Idempotent — keyed on (source='shopify', source_ref=order.gid).
  * Multiple webhook deliveries for the same order produce one row.
@@ -111,13 +111,13 @@ type ShopifyOrder = {
 
 /**
  * Compute the points-eligible amount for a Shopify order:
- *   subtotal − total_discounts − gift_card_line_value
- * (Tax is not in subtotal_price by default for Shopify orders, so we
- *  don't have to subtract it explicitly.)
+ *   subtotal_price − gift_card_line_value
+ * Shopify's subtotal_price is already after discounts (line + order level,
+ * including reward codes) and before shipping, taxes and tips — so the
+ * discount must NOT be subtracted again.
  */
 function computeEligible(o: ShopifyOrder, s: { exclude_gift_card_purchases: boolean }): number {
   const subtotal = Number(o.subtotal_price ?? 0);
-  const discount = Number(o.total_discounts ?? 0);
   let giftCardValue = 0;
   if (s.exclude_gift_card_purchases) {
     for (const li of o.line_items ?? []) {
@@ -127,5 +127,5 @@ function computeEligible(o: ShopifyOrder, s: { exclude_gift_card_purchases: bool
       }
     }
   }
-  return Math.max(0, subtotal - discount - giftCardValue);
+  return Math.max(0, subtotal - giftCardValue);
 }
