@@ -20,7 +20,8 @@ import { shopifyGraphQL } from "./shopify";
  *     merchandise, so shipping is never paid with points.
  *   - one active code per member; cancelCoupon() returns its points so the
  *     member can pick a different reward
- *   - allow_stacking_with_codes → combinesWith
+ *   - always combines with sale prices (product discounts);
+ *     allow_stacking_with_codes → also with other order-level codes
  *   - coupon_ttl_hours → endsAt; unused codes are credited back on expiry
  */
 export class RedeemError extends Error {
@@ -128,9 +129,12 @@ export async function issueCoupon(
             items: { all: true },
           },
           minimumRequirement: { subtotal: { greaterThanOrEqualToSubtotal: minSubtotal } },
+          // Stacks on top of automatic sale prices (product discounts — the
+          // sale side must also allow order discounts, which the summer sale
+          // tiers do). Other order-level codes only if the admin allows it.
           combinesWith: {
             orderDiscounts: s.allow_stacking_with_codes,
-            productDiscounts: s.allow_stacking_with_codes,
+            productDiscounts: true,
             shippingDiscounts: true,
           },
         },
