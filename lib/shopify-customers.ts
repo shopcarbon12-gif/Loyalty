@@ -21,6 +21,7 @@ export type ShopifyCustomerPayload = {
   email?: string | null;
   phone?: string | null;
   default_address?: {
+    phone?: string | null;
     city?: string | null;
     province?: string | null;
     province_code?: string | null;
@@ -39,7 +40,7 @@ export async function resolveShopifyCustomer(
   if (linked.rows[0]) return { customerId: linked.rows[0].id, created: false };
 
   const email = c.email?.trim().toLowerCase() || null;
-  const phone = last10(c.phone);
+  const phone = last10(customerPhone(c));
 
   let matchId: number | null = null;
   if (email) {
@@ -84,7 +85,7 @@ export async function resolveShopifyCustomer(
           created_via, created_at_geo, created_at)
        VALUES ($1, $2, $3, $4, NULL, $5, now(), 'shopify', $6, now())
        RETURNING id`,
-      [c.first_name ?? null, c.last_name ?? null, c.email ?? null, c.phone ?? null, gid, formatGeo(c.default_address)],
+      [c.first_name ?? null, c.last_name ?? null, c.email ?? null, posPhone(customerPhone(c)), gid, formatGeo(c.default_address)],
     );
     customerId = ins.rows[0].id;
     created = true;
@@ -96,6 +97,22 @@ export async function resolveShopifyCustomer(
     [customerId, gid],
   );
   return { customerId, created };
+}
+
+/**
+ * The customer's phone as Shopify shows it to them: the customer-level phone,
+ * or — when that's empty, which is common — the default address phone.
+ */
+export function customerPhone(c: ShopifyCustomerPayload): string | null {
+  return c.phone?.trim() || c.default_address?.phone?.trim() || null;
+}
+
+/** POS stores US numbers as bare 10 digits ("3165186720"); keep that shape. */
+export function posPhone(p: string | null | undefined): string | null {
+  const d = (p ?? "").replace(/\D/g, "");
+  if (!d) return null;
+  if (d.length === 11 && d.startsWith("1")) return d.slice(1);
+  return d.length === 10 ? d : p!.trim();
 }
 
 function last10(p: string | null | undefined): string | null {

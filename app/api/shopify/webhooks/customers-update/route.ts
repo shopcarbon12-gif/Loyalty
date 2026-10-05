@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
+import { withTransaction } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
+import {
+  customerPhone,
+  posPhone,
+  resolveShopifyCustomer,
+  type ShopifyCustomerPayload,
+} from "@/lib/shopify-customers";
 
 /**
  * POST /api/shopify/webhooks/customers-update
  *
  * Shopify fires this on any change to a storefront customer. We mirror
- * first_name / last_name / email / phone into pos_customers, matched
- * by shopify_customer_gid. No-op if we don't have the customer linked
- * (the customers-create webhook should have done the linkage).
+ * first_name / last_name / email / phone into pos_customers (shared with
+ * POS and WMS). Phone is the customer-level phone, or the default address
+ * phone when that's empty — which is what customers edit in their account.
+ * Customers we haven't linked yet are linked (or created) first.
  *
  * Tags from Shopify are NOT synced into POS — matches the Kangaroo
  * setting confirmed during reverse-engineering ("Sync Customer Tags
@@ -20,7 +27,7 @@ export async function POST(req: Request) {
   if (!verifyWebhookHmac(raw, hmac)) {
     return NextResponse.json({ error: "invalid_hmac" }, { status: 401 });
   }
-  let c: ShopifyCustomer;
+  let c: ShopifyCustomerPayload;
   try {
     c = JSON.parse(raw);
   } catch {
@@ -30,26 +37,22 @@ export async function POST(req: Request) {
   if (!gid) return NextResponse.json({ ok: true, skipped: "no_gid" });
 
   try {
-    const r = await getPool().query(
-      `UPDATE pos_customers
-          SET first_name   = COALESCE($2, first_name),
-              last_name    = COALESCE($3, last_name),
-              email        = COALESCE($4, email),
-              phone        = COALESCE($5, phone)
-        WHERE shopify_customer_gid = $1`,
-      [gid, c.first_name ?? null, c.last_name ?? null, c.email ?? null, c.phone ?? null],
-    );
-    return NextResponse.json({ ok: true, updated: r.rowCount ?? 0 });
+    const result = await withTransaction(async (client) => {
+      const { customerId, created } = await resolveShopifyCustomer(client, gid, c);
+      const r = await client.query(
+        `UPDATE pos_customers
+            SET first_name = COALESCE($2, first_name),
+                last_name  = COALESCE($3, last_name),
+                email      = COALESCE($4, email),
+                phone      = COALESCE($5, phone)
+          WHERE id = $1`,
+        [customerId, c.first_name || null, c.last_name || null, c.email || null, posPhone(customerPhone(c))],
+      );
+      return { customer_id: customerId, created, updated: r.rowCount ?? 0 };
+    });
+    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("[customers-update]", err);
     return NextResponse.json({ ok: false }, { status: 200 });
   }
 }
-
-type ShopifyCustomer = {
-  admin_graphql_api_id?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-};
