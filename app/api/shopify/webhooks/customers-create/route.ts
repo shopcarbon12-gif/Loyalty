@@ -41,10 +41,12 @@ export async function POST(req: Request) {
     const result = await withTransaction(async (client) => {
       // Link to an existing in-store member (GID → email → phone) or
       // create a new one. See lib/shopify-customers.ts.
-      const { customerId } = await resolveShopifyCustomer(client, gid, c);
+      const { customerId, wasLinked } = await resolveShopifyCustomer(client, gid, c);
 
       // Welcome bonus — idempotent on the unique source/source_ref index.
-      const bonus = settings.signup_bonus_points;
+      // Skipped when the member was already linked: that's an in-store
+      // customer our own sync just created in Shopify, not an online signup.
+      const bonus = wasLinked ? 0 : settings.signup_bonus_points;
       let welcomeLed: { id: number; new_balance: number } | null = null;
       if (bonus > 0) {
         welcomeLed = await insertLedger(client, {

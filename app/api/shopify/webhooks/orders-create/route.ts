@@ -7,6 +7,7 @@ import {
 } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
 import { markCouponsUsed } from "@/lib/coupons";
+import { upsertShopifyOrder, type ShopifyOrderPayload } from "@/lib/orders";
 import {
   resolveShopifyCustomer,
   type ShopifyCustomerPayload,
@@ -38,6 +39,16 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "bad_json" }, { status: 400 });
   }
+  const res = await earn(order);
+  // Order history for POS / WMS / customer account — every order, after the
+  // earn step so a just-linked member is attached.
+  await upsertShopifyOrder(order as ShopifyOrderPayload).catch((err) =>
+    console.error("[orders-create] upsertShopifyOrder", err),
+  );
+  return res;
+}
+
+async function earn(order: ShopifyOrder): Promise<NextResponse> {
 
   // Live kill-switch — when OFF we 200 Shopify (no retry) but write nothing.
   const settings = await getSettings();

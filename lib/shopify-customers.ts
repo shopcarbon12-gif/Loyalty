@@ -13,6 +13,10 @@ import { PoolClient } from "pg";
  *
  * On link, ledger rows that arrived before the link (orders/create writes
  * them keyed only on the GID) are attributed to the member.
+ *
+ * Only ever called from Shopify webhooks, so it marks the transaction as
+ * Shopify-originated: the pos_customers trigger then doesn't queue these
+ * writes to be pushed back to Shopify (migration 009).
  */
 export type ShopifyCustomerPayload = {
   admin_graphql_api_id?: string;
@@ -32,12 +36,13 @@ export async function resolveShopifyCustomer(
   client: PoolClient,
   gid: string,
   c: ShopifyCustomerPayload,
-): Promise<{ customerId: number; created: boolean }> {
+): Promise<{ customerId: number; created: boolean; wasLinked: boolean }> {
+  await client.query(`SELECT set_config('carbon.sync_origin', 'shopify', true)`);
   const linked = await client.query<{ id: number }>(
     `SELECT id FROM pos_customers WHERE shopify_customer_gid = $1 ORDER BY id LIMIT 1`,
     [gid],
   );
-  if (linked.rows[0]) return { customerId: linked.rows[0].id, created: false };
+  if (linked.rows[0]) return { customerId: linked.rows[0].id, created: false, wasLinked: true };
 
   const email = c.email?.trim().toLowerCase() || null;
   const phone = last10(customerPhone(c));
@@ -96,7 +101,7 @@ export async function resolveShopifyCustomer(
       WHERE shopify_gid = $2 AND customer_id IS NULL`,
     [customerId, gid],
   );
-  return { customerId, created };
+  return { customerId, created, wasLinked: false };
 }
 
 /**
