@@ -31,7 +31,9 @@ npm run dev                     # http://localhost:5100
    - `LOYALTY_OUTBOX_DRAIN_KEY` — 32-char random hex; goes into
      Carbon-POS env. The Coolify cron uses it to drain `pos_loyalty_outbox`.
    - `SHOPIFY_API_SECRET` — Shopify app secret (verifies webhooks +
-     app-proxy signatures).
+     app-proxy signatures). Same value as WMS `SHOPIFY_WEBHOOK_SECRET`.
+   - `SHOPIFY_SHOP_DOMAIN`, `SHOPIFY_ADMIN_ACCESS_TOKEN` — same pair as WMS;
+     used to link customers and push the `loyalty.balance` metafield.
    - `NEXTAUTH_SECRET` — `openssl rand -base64 32`.
    - `NEXTAUTH_URL` — `https://rewards.shopcarbon.com`.
    - `RESEND_API_KEY` — same as POS for transactional email.
@@ -76,6 +78,13 @@ Then add a Coolify cron schedule:
 - `POST /api/shopify/webhooks/orders-create`
 - `POST /api/shopify/webhooks/orders-cancelled`
 - `POST /api/shopify/webhooks/refunds-create`
+- `POST /api/shopify/webhooks/customers-create`
+- `POST /api/shopify/webhooks/customers-update`
+
+### Cron (bearer `LOYALTY_API_KEY`)
+
+- `POST /api/cron/sync-metafields` — push changed balances to the
+  `loyalty.balance` Shopify customer metafield the theme reads
 
 ### Storefront app proxy (signature verified)
 

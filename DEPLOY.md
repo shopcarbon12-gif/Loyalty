@@ -53,10 +53,12 @@ In the Coolify UI on `152.53.210.171:8000`:
 ## 5. Set environment variables in Coolify
 
 ```
-DATABASE_URL=postgres://postgres:3H5ouoNVVMvUyFweIwpH50KiJwfkFLin6wJjyMg49RIEv6UTKJZqo1QFYSpez6g1@iogw84scwo0owsco8c8wg4s0:5432/postgres
+DATABASE_URL=<same value as Carbon-pos / WMS — internal host iogw84scwo0owsco8c8wg4s0:5432>
 LOYALTY_API_KEY=<from step 3>
-SHOPIFY_API_SECRET=<Shopify app secret, from carbon-gen .env.coolify.local or the Partners dashboard>
+SHOPIFY_API_SECRET=<same value as WMS SHOPIFY_WEBHOOK_SECRET>
 SHOPIFY_API_VERSION=2025-01
+SHOPIFY_SHOP_DOMAIN=<same as WMS>
+SHOPIFY_ADMIN_ACCESS_TOKEN=<same as WMS>
 NEXTAUTH_SECRET=<from step 3>
 NEXTAUTH_URL=https://rewards.shopcarbon.com
 RESEND_API_KEY=<same value as Carbon-POS>
@@ -102,24 +104,23 @@ curl -fsS -X POST -H "Authorization: Bearer $LOYALTY_OUTBOX_DRAIN_KEY" \
 
 Every 1 minute. Drains queued earn / redeem / refund calls to loyalty.
 
-## 9. Update the Shopify app
+## 9. Shopify webhooks + metafield sync
 
-In your Shopify Partners dashboard for the Carbon Loyalty app
-(Carbon-Gen owns the install, but we need the routes pointed at
-rewards.shopcarbon.com):
+Webhooks are registered through the Admin API with the WMS token (they
+belong to the same Shopify app, so `SHOPIFY_API_SECRET` verifies them):
 
-- **App URL**: `https://rewards.shopcarbon.com`
-- **Allowed redirection URLs**: include
-  `https://rewards.shopcarbon.com/api/auth/callback`
-- **App proxy**:
-  - sub-path prefix: `apps`
-  - sub-path: `loyalty`
-  - proxy URL: `https://rewards.shopcarbon.com/apps/loyalty`
-- **Webhook subscriptions**:
-  - `orders/create` → `https://rewards.shopcarbon.com/api/shopify/webhooks/orders-create`
-  - `orders/cancelled` → `https://rewards.shopcarbon.com/api/shopify/webhooks/orders-cancelled`
-  - `refunds/create` → `https://rewards.shopcarbon.com/api/shopify/webhooks/refunds-create`
-  - API version: 2025-01
+- `orders/create`, `orders/cancelled`, `refunds/create`,
+  `customers/create`, `customers/update`
+  → `https://rewards.shopcarbon.com/api/shopify/webhooks/<topic-with-dash>`
+
+The storefront reads points from the `loyalty.balance` customer
+metafield (no app proxy needed). Add a Coolify scheduled task on
+`Carbon-Rewards`, every minute:
+
+```
+wget -qO- --post-data= --header "Authorization: Bearer $LOYALTY_API_KEY" \
+     http://127.0.0.1:5100/api/cron/sync-metafields
+```
 
 ## 10. Flip the live switch when ready
 

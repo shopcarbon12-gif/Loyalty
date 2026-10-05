@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
 import {
   insertLedger,
@@ -7,6 +6,10 @@ import {
   withTransaction,
 } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
+import {
+  resolveShopifyCustomer,
+  type ShopifyCustomerPayload,
+} from "@/lib/shopify-customers";
 
 /**
  * POST /api/shopify/webhooks/orders-create
@@ -51,22 +54,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: "no_customer" });
   }
 
-  // Match the GID to our pos_customers row.
-  const c = await getPool().query<{ id: number }>(
-    `SELECT id FROM pos_customers WHERE shopify_customer_gid = $1 LIMIT 1`,
-    [customerGid],
-  );
-  const customerId = c.rows[0]?.id ?? null;
-  // No POS customer linked yet — we still record the event keyed only on
-  // the GID so we can back-fill the link later.
-
   const eligible = computeEligible(order, settings);
   const points = await pointsForEligible(eligible);
   const sourceRef = order.admin_graphql_api_id; // gid://shopify/Order/123
 
   try {
-    const result = await withTransaction((client) =>
-      insertLedger(client, {
+    const result = await withTransaction(async (client) => {
+      // Link (or create) the member so online orders always credit
+      // someone — see lib/shopify-customers.ts.
+      const { customerId } = await resolveShopifyCustomer(client, customerGid, order.customer ?? {});
+      return insertLedger(client, {
         customer_id: customerId,
         shopify_gid: customerGid,
         delta_points: points,
@@ -74,8 +71,8 @@ export async function POST(req: Request) {
         source: "shopify",
         source_ref: sourceRef,
         amount_basis: eligible,
-      }),
-    );
+      });
+    });
     return NextResponse.json({
       ok: true,
       ledger_id: result.id,
@@ -96,12 +93,7 @@ type ShopifyOrder = {
   subtotal_price?: string;
   total_discounts?: string;
   total_tax?: string;
-  customer?: {
-    admin_graphql_api_id?: string;
-    id?: number;
-    email?: string | null;
-    phone?: string | null;
-  };
+  customer?: ShopifyCustomerPayload & { id?: number };
   line_items?: Array<{
     gift_card?: boolean;
     price?: string;
