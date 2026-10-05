@@ -1,0 +1,18 @@
+# "In-store purchases" page in customer accounts: Carbon POS sales for the
+# signed-in customer (online orders are already on Shopify's Orders page).
+# Calls rewards.shopcarbon.com/api/account/purchases with the session token.
+api_version = "2026-07"
+
+[[extensions]]
+name = "In-store purchases"
+handle = "store-purchases"
+uid = "e6653ebc-92d4-2d73-0462-a206499084b28ec33083"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/StorePurchases.jsx"
+target = "customer-account.page.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true

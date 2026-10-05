@@ -93,7 +93,7 @@ export async function POST(req: Request) {
           delta_points: delta,
           reason: "refund",
           source: "pos",
-          source_ref: `pos:refund:${data.sale_id}:${row.id}:${data.idempotency_key.slice(0, 8)}`,
+          source_ref: `pos:refund:${data.sale_id}:${row.id}:${data.idempotency_key}`,
           amount_basis: data.refund_amount,
         });
         reversed.push({ ledger_id: led.id, delta_points: delta });
