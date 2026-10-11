@@ -125,3 +125,47 @@ function num(v: string | undefined | null): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Take back points earned on an online order — for a refund (a share of the
+ * order) or a cancellation (everything left). Shopify sends BOTH
+ * refunds/create and orders/cancelled when an order is cancelled with a
+ * refund, so every reversal is capped at what the order earned minus what
+ * earlier refunds/cancellation already took back. Rows are keyed per order
+ * (shopify:refund:<order>:<refund>, shopify:cancel:<order>) so the cap can
+ * find them and retries stay idempotent.
+ */
+export async function reverseOnlineOrderPoints(
+  orderGid: string,
+  r: { kind: "refund"; refundGid: string; share: number; amount: number } | { kind: "cancel" },
+): Promise<{ delta: number } | null> {
+  return withTransaction(async (client) => {
+    const earn = await client.query<{ customer_id: number | null; shopify_gid: string | null; delta_points: number }>(
+      `SELECT customer_id, shopify_gid, delta_points FROM loyalty_ledger
+        WHERE source = 'shopify' AND source_ref = $1 FOR UPDATE`,
+      [orderGid],
+    );
+    const e = earn.rows[0];
+    if (!e || e.delta_points <= 0) return null;
+    const prior = await client.query<{ s: string }>(
+      `SELECT COALESCE(SUM(delta_points), 0)::text AS s FROM loyalty_ledger
+        WHERE source = 'shopify' AND reason = 'refund'
+          AND (source_ref LIKE $1 OR source_ref LIKE $2)`,
+      [`shopify:refund:${orderGid}:%`, `shopify:cancel:${orderGid}%`],
+    );
+    const remaining = Math.max(0, e.delta_points + Number(prior.rows[0].s));
+    const want = r.kind === "cancel" ? remaining : Math.round(e.delta_points * Math.min(1, Math.max(0, r.share)));
+    const take = Math.min(remaining, want);
+    if (take <= 0) return { delta: 0 };
+    await insertLedger(client, {
+      customer_id: e.customer_id,
+      shopify_gid: e.shopify_gid,
+      delta_points: -take,
+      reason: "refund",
+      source: "shopify",
+      source_ref: r.kind === "cancel" ? `shopify:cancel:${orderGid}` : `shopify:refund:${orderGid}:${r.refundGid}`,
+      amount_basis: r.kind === "refund" ? r.amount : null,
+    });
+    return { delta: -take };
+  });
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
-import { insertLedger, withTransaction } from "@/lib/loyalty";
+import { reverseOnlineOrderPoints } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 
 /**
@@ -41,48 +41,19 @@ export async function POST(req: Request) {
   const orderGid = `gid://shopify/Order/${body.order_id}`;
   const refundGid = body.admin_graphql_api_id ?? `shopify:refund:${body.order_id}:${Date.now()}`;
 
-  // Original earn row.
-  const orig = await getPool().query<{
-    id: string;
-    customer_id: number | null;
-    shopify_gid: string | null;
-    delta_points: number;
-    amount_basis: string | null;
-  }>(
-    `SELECT id::text, customer_id, shopify_gid, delta_points, amount_basis::text
-       FROM loyalty_ledger
-      WHERE source = 'shopify' AND source_ref = $1
-      LIMIT 1`,
+  // Share of the order's points-eligible amount being refunded.
+  const basis = await getPool().query<{ amount_basis: string | null }>(
+    `SELECT amount_basis::text FROM loyalty_ledger WHERE source = 'shopify' AND source_ref = $1 LIMIT 1`,
     [orderGid],
   );
-  if (orig.rowCount === 0) {
-    return NextResponse.json({ ok: true, skipped: "no_original" });
-  }
-  const o = orig.rows[0];
+  if (!basis.rows[0]) return NextResponse.json({ ok: true, skipped: "no_original" });
   const refundedSubtotal = (body.refund_line_items ?? [])
     .reduce((s, li) => s + Number(li.subtotal ?? 0), 0);
-  const origAmount = Number(o.amount_basis ?? 0);
-  const pct = origAmount > 0 ? Math.min(1, refundedSubtotal / origAmount) : 1;
-  const reverseDelta = -Math.round(o.delta_points * pct);
-  if (reverseDelta === 0) {
-    return NextResponse.json({ ok: true, skipped: "zero_pct" });
-  }
+  const origAmount = Number(basis.rows[0].amount_basis ?? 0);
+  const share = origAmount > 0 ? refundedSubtotal / origAmount : 1;
   try {
-    const result = await withTransaction((client) =>
-      insertLedger(client, {
-        customer_id: o.customer_id,
-        shopify_gid: o.shopify_gid,
-        delta_points: reverseDelta,
-        reason: "refund",
-        source: "shopify",
-        source_ref: refundGid,
-        amount_basis: refundedSubtotal,
-      }),
-    );
-    return NextResponse.json({
-      ok: true,
-      reversed: { ledger_id: result.id, delta_points: reverseDelta },
-    });
+    const r = await reverseOnlineOrderPoints(orderGid, { kind: "refund", refundGid, share, amount: refundedSubtotal });
+    return NextResponse.json({ ok: true, reversed: r });
   } catch (err) {
     console.error("[refunds-create]", err);
     return NextResponse.json({ ok: false }, { status: 200 });
