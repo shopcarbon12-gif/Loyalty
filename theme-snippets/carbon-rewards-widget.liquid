@@ -308,7 +308,7 @@
             if (!d.activity.length) return '<p class="crw__label">Recent activity</p><p class="crw__note">No activity yet.</p>';
             return '<p class="crw__label">Recent activity</p>' + d.activity.map((a) => {
               const plus = a.delta_points >= 0;
-              return '<div class="crw__act"><div><b>' + esc(REASON[a.reason] || 'Activity') + '</b><span>' + new Date(a.created_at).toISOString().slice(0, 10) + ' · ' + esc(SOURCE[a.source] || '') + '</span></div>' +
+              return '<div class="crw__act"><div><b>' + esc(REASON[a.reason] || 'Activity') + '</b><span>' + new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(a.created_at)) + ' · ' + esc(SOURCE[a.source] || '') + '</span></div>' +
                 '<em class="' + (plus ? 'crw__plus' : 'crw__minus') + '">' + (plus ? '+' : '') + a.delta_points + '</em></div>';
             }).join('');
           }
