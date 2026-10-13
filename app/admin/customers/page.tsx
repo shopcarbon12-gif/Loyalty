@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPool } from "@/lib/db";
 import { AdminShell } from "@/components/AdminShell";
+import { staffLabel } from "@/lib/staff-name";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ type Row = {
   created_at_geo: string | null;
   pos_location_name: string | null;
   created_by_email: string | null;
+  created_by_first: string | null;
+  created_by_last: string | null;
   created_at: string | null;
 };
 
@@ -112,6 +115,8 @@ export default async function CustomersPage({
                 END
               ) AS pos_location_name,
               u.email AS created_by_email,
+              u.first_name AS created_by_first,
+              u.last_name AS created_by_last,
               pc.created_at::text AS created_at
          FROM pos_customers pc
          LEFT JOIN loyalty_balance lb ON lb.customer_id = pc.id
@@ -239,7 +244,10 @@ export default async function CustomersPage({
                               {v.label}
                             </span>
                             {where ? <span>{where}</span> : null}
-                            {r.created_by_email ? <span>by {r.created_by_email}</span> : null}
+                            {/* Employee who added the member: "First L." (owner rule 2026-10-12). */}
+                            {staffLabel(r.created_by_first, r.created_by_last, r.created_by_email) ? (
+                              <span>by {staffLabel(r.created_by_first, r.created_by_last, r.created_by_email)}</span>
+                            ) : null}
                             {when ? <span>{when}</span> : null}
                             {linked ? <span className="text-[10px]">↗ shopify-linked</span> : null}
                           </div>
