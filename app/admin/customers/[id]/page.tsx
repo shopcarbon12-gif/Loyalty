@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getPool, withTransaction } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { insertLedger } from "@/lib/loyalty";
+import { requireSession } from "@/lib/get-session";
 import { AdminShell } from "@/components/AdminShell";
 
 export const dynamic = "force-dynamic";
@@ -135,6 +136,7 @@ export default async function CustomerDetail({
   // (basisDollars is hoisted to module scope — see note above.)
   async function rewardAction(formData: FormData) {
     "use server";
+    await requireSession();
     const pts = Number(formData.get("points") ?? 0);
     const note = String(formData.get("note") ?? "").trim().slice(0, 60);
     if (!Number.isFinite(pts) || pts <= 0) return;
@@ -157,6 +159,7 @@ export default async function CustomerDetail({
 
   async function deductAction(formData: FormData) {
     "use server";
+    await requireSession();
     // Positive integer input — always deducts. Mirror of rewardAction.
     const pts = Number(formData.get("points") ?? 0);
     const note = String(formData.get("note") ?? "").trim().slice(0, 60);

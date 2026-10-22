@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPool } from "@/lib/db";
 import { getSettings, clearSettingsCache } from "@/lib/settings";
+import { requireSession } from "@/lib/get-session";
 import { AdminShell } from "@/components/AdminShell";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function SettingsPage() {
 
   async function save(formData: FormData) {
     "use server";
+    await requireSession();
     const num = (k: string) => Number(formData.get(k) ?? 0);
     const bool = (k: string) => formData.get(k) === "on";
     await getPool().query(
