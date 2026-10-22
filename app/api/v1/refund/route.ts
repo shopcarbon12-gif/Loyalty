@@ -96,6 +96,19 @@ export async function POST(req: Request) {
 
   try {
     const result = await withTransaction(async (client) => {
+      // Serialize refunds per customer so two concurrent refunds for the same
+      // sale can't both read "already reversed = 0" and reverse the same rows
+      // twice (point inflation). Mirrors the lock in /redeem and issueCoupon.
+      const custIds = [
+        ...new Set(
+          orig.rows
+            .map((r) => r.customer_id)
+            .filter((x): x is number => x != null),
+        ),
+      ];
+      for (const cid of custIds) {
+        await client.query(`SELECT id FROM pos_customers WHERE id = $1 FOR UPDATE`, [cid]);
+      }
       const reversed: { ledger_id: number; delta_points: number }[] = [];
       let lastBalance = 0;
       // Refunds can come in several parts. Work from the running total so the
