@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { AdminShell } from "@/components/AdminShell";
-import { requireSession } from "@/lib/get-session";
+import { requireAdminSession } from "@/lib/get-session";
 import { parseCsv, importRows, type ImportSummary, type ParsedRow } from "@/lib/csv-import";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function ImportPage({
 
   async function previewAction(formData: FormData): Promise<void> {
     "use server";
-    await requireSession();
+    await requireAdminSession();
     const text = String(formData.get("csv_text") ?? "").trim();
     const tag = String(formData.get("source_tag") ?? "import").trim().slice(0, 32) || "import";
     const credit = formData.get("credit_balance") === "on";
@@ -57,7 +57,7 @@ export default async function ImportPage({
 
   async function commitAction(): Promise<void> {
     "use server";
-    await requireSession();
+    await requireAdminSession();
     const c = await cookies();
     const blob = c.get("loyalty_import_preview")?.value;
     if (!blob) return;
@@ -83,7 +83,7 @@ export default async function ImportPage({
 
   async function clearAction(): Promise<void> {
     "use server";
-    await requireSession();
+    await requireAdminSession();
     const c = await cookies();
     c.delete("loyalty_import_preview");
     c.delete("loyalty_import_summary");

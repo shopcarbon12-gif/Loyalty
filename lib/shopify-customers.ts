@@ -11,6 +11,12 @@ import { PoolClient } from "pg";
  *   3. phone (last 10 digits of phone / phone_2), same uniqueness rule
  * No match → insert a new member with created_via='shopify'.
  *
+ * SECURITY: linking a NEW Shopify GID to an EXISTING member (steps 2–3) is
+ * only done when Shopify reports `verified_email: true`. Otherwise anyone who
+ * creates a Shopify account (or places an order) with a victim's email/phone
+ * would get their GID attached to the victim's member and could read/spend the
+ * victim's points. Unverified customers get their own fresh member instead.
+ *
  * On link, ledger rows that arrived before the link (orders/create writes
  * them keyed only on the GID) are attributed to the member.
  *
@@ -20,6 +26,9 @@ import { PoolClient } from "pg";
  */
 export type ShopifyCustomerPayload = {
   admin_graphql_api_id?: string;
+  /** Shopify's proof the account controls this email. Required before we
+   *  link this customer to an existing (in-store) loyalty member. */
+  verified_email?: boolean | null;
   first_name?: string | null;
   last_name?: string | null;
   email?: string | null;
@@ -49,8 +58,13 @@ export async function resolveShopifyCustomer(
   const email = c.email?.trim().toLowerCase() || null;
   const phone = last10(customerPhone(c));
 
+  // Only merge into an existing in-store member when Shopify has verified the
+  // email — otherwise an unverified account carrying someone else's email/phone
+  // could hijack their loyalty member. Unverified → fall through to a new member.
+  const canLinkToExisting = c.verified_email === true;
+
   let matchId: number | null = null;
-  if (email) {
+  if (email && canLinkToExisting) {
     const r = await client.query<{ id: number }>(
       `SELECT id FROM pos_customers
         WHERE lower(trim(email)) = $1 AND shopify_customer_gid IS NULL
@@ -59,7 +73,7 @@ export async function resolveShopifyCustomer(
     );
     if (r.rows.length === 1) matchId = r.rows[0].id;
   }
-  if (matchId == null && phone) {
+  if (matchId == null && phone && canLinkToExisting) {
     const r = await client.query<{ id: number }>(
       `SELECT id FROM pos_customers
         WHERE shopify_customer_gid IS NULL

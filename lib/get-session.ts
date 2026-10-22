@@ -27,3 +27,21 @@ export async function requireSession(): Promise<SessionPayload> {
   if (!session) redirect("/login");
   return session;
 }
+
+/** True only for the Rewards "Super Admin" role (matches "super_admin",
+ *  "super-admin", etc.). Manager and any other role are NOT admins. */
+export function isAdminRole(role: string | null | undefined): boolean {
+  return (role ?? "").toLowerCase().replace(/[^a-z]/g, "") === "superadmin";
+}
+
+/**
+ * Stricter guard for mutating admin server actions: requires a valid session
+ * AND the Super Admin role. A logged-in non-admin (e.g. Manager) is bounced to
+ * /login?denied=1 rather than allowed to adjust points / change settings.
+ */
+export async function requireAdminSession(): Promise<SessionPayload> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!isAdminRole(session.role)) redirect("/login?denied=1");
+  return session;
+}

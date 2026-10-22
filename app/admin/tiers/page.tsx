@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getPool } from "@/lib/db";
 import { getSettings, clearSettingsCache } from "@/lib/settings";
-import { requireSession } from "@/lib/get-session";
+import { requireAdminSession } from "@/lib/get-session";
 import { AdminShell } from "@/components/AdminShell";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export default async function TiersPage() {
 
   async function save(formData: FormData) {
     "use server";
-    await requireSession();
+    await requireAdminSession();
     const pool = getPool();
     for (const t of tiers) {
       const points = Number(formData.get(`points_${t.code}`) ?? t.qualifying_points);
