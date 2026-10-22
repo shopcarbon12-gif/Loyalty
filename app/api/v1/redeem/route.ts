@@ -18,6 +18,10 @@ const schema = z.object({
   points: z.number().int().positive(),
 });
 
+// Thrown inside the redeem transaction when the locked balance re-check fails,
+// so the handler can map it to a 402 rather than a generic 500.
+class InsufficientBalanceError extends Error {}
+
 /**
  * POST /api/v1/redeem
  *
@@ -86,6 +90,8 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
+  // Fast path only — the authoritative, race-free check runs inside the
+  // locked transaction below.
   const balance = await getBalance(data.customer_id);
   if (balance < data.points) {
     return NextResponse.json(
@@ -104,6 +110,20 @@ export async function POST(req: Request) {
 
   try {
     const result = await withTransaction(async (client) => {
+      // Serialize redemptions per member so concurrent calls can't overdraw
+      // (mirrors issueCoupon in lib/coupons.ts). The check above is only a fast
+      // path; this locked re-read is the authoritative balance check.
+      await client.query(`SELECT id FROM pos_customers WHERE id = $1 FOR UPDATE`, [
+        data.customer_id,
+      ]);
+      const bal = await client.query<{ balance: string }>(
+        `SELECT COALESCE(SUM(delta_points), 0)::text AS balance
+           FROM loyalty_ledger WHERE customer_id = $1`,
+        [data.customer_id],
+      );
+      if (Number(bal.rows[0]?.balance ?? 0) < data.points) {
+        throw new InsufficientBalanceError();
+      }
       const led = await insertLedger(client, {
         customer_id: data.customer_id,
         shopify_gid: null,
@@ -136,6 +156,12 @@ export async function POST(req: Request) {
       new_balance: result.new_balance,
     });
   } catch (err) {
+    if (err instanceof InsufficientBalanceError) {
+      return NextResponse.json(
+        { error: "insufficient_balance", message: "Not enough points." },
+        { status: 402 },
+      );
+    }
     console.error("[/api/v1/redeem]", err);
     return NextResponse.json(
       { error: "server_error", message: "Couldn't record the redemption." },

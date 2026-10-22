@@ -23,6 +23,17 @@ export default function SignInPage() {
   );
 }
 
+function isSafeInternalPath(p: string | null): p is string {
+  if (!p) return false;
+  if (!p.startsWith("/")) return false;
+  // Reject protocol-relative ("//host") and backslash ("/\host") forms.
+  if (p.startsWith("//") || p.startsWith("/\\")) return false;
+  // Reject control characters that could smuggle a second URL component.
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f]/.test(p)) return false;
+  return true;
+}
+
 function SignInInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -52,9 +63,11 @@ function SignInInner() {
         }
         return;
       }
-      // Sanitize the redirect target — only allow same-origin paths.
-      const target =
-        fromParam && fromParam.startsWith("/") ? fromParam : "/admin";
+      // Sanitize the redirect target — only allow same-origin paths. A value
+      // like "//attacker.example" or "/\attacker.example" also starts with "/"
+      // but is protocol-relative and would navigate off-site, so reject those
+      // and any control characters.
+      const target = isSafeInternalPath(fromParam) ? fromParam! : "/admin";
       router.replace(target);
       router.refresh();
     } finally {
