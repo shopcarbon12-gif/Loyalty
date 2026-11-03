@@ -69,6 +69,65 @@ export async function getStorePurchases() {
   return (await res.json()).purchases;
 }
 
+/**
+ * Points an online order earned (rewards.shopcarbon.com/api/account/order-points,
+ * the same call the thank-you page uses). null when unknown or not earned yet.
+ */
+export async function getOrderPoints(order) {
+  if (shopify.extension.editor) return 50;
+  try {
+    const token = await shopify.sessionToken.get();
+    const res = await fetch(`${BASE}/api/account/order-points?order=${encodeURIComponent(order.id)}`, {
+      headers: {Authorization: `Bearer ${token}`},
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.status === 'earned' && body.points > 0 ? body.points : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Online orders and in-store receipts as one list, newest first — the phone
+ * layout's "Recent purchases". Each row: what was bought, where, when, the
+ * total, a photo when the source has one, and the points it earned.
+ */
+export function mergePurchases(orders, store) {
+  const online = (Array.isArray(orders) ? orders : []).map((o) => {
+    const first = o.lineItems.nodes[0];
+    const more = o.lineItems.nodes.length - 1;
+    return {
+      key: o.id,
+      title: first ? `${first.name}${more > 0 ? ` + ${more} more` : ''}` : `Order ${o.name}`,
+      where: 'Online',
+      at: o.processedAt,
+      total: o.totalPrice.amount,
+      image: firstImage(o),
+      status: orderStatus(o),
+      points: o.points ?? null,
+      href: orderUrl(o),
+    };
+  });
+  const inStore = (Array.isArray(store) ? store : []).map((p) => {
+    const products = p.lines.filter((l) => l.type !== 'loyalty_redemption');
+    return {
+      key: `store-${p.number}`,
+      title: products[0]
+        ? `${products[0].description}${products.length > 1 ? ` + ${products.length - 1} more` : ''}`
+        : 'In-store purchase',
+      where: 'In-store',
+      at: p.placed_at,
+      total: p.total,
+      image: null,
+      status: p.status === 'refunded' ? {label: 'Refunded', tone: 'neutral'} : null,
+      points: p.points ?? null,
+      href: 'extension:store-purchases/',
+    };
+  });
+  return [...online, ...inStore].sort((a, b) => new Date(b.at) - new Date(a.at));
+}
+
 /** Shopify's own order page for an online order. */
 export function orderUrl(order) {
   return `shopify:customer-account/orders/${String(order.id).split('/').pop()}`;

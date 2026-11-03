@@ -36,9 +36,21 @@ export async function GET(req: Request) {
         [ids],
       )
     : { rows: [] };
+  // Points each sale earned (POS earn rows are keyed source_ref = 'pos:sale:<id>').
+  const earned = ids.length
+    ? await pool.query<{ source_ref: string; points: string }>(
+        `SELECT source_ref, sum(delta_points)::text AS points
+           FROM loyalty_ledger
+          WHERE customer_id = $1 AND source = 'pos' AND reason = 'sale' AND source_ref = ANY($2::text[])
+          GROUP BY source_ref`,
+        [c.rows[0].id, ids.map((id) => `pos:sale:${id}`)],
+      )
+    : { rows: [] };
+  const pointsBySale = new Map(earned.rows.map((r) => [r.source_ref, Number(r.points)]));
   return corsJson({
     purchases: sales.rows.map((s) => ({
       number: s.number,
+      points: pointsBySale.get(`pos:sale:${s.ref}`) ?? null,
       placed_at: s.placed_at,
       total: Number(s.total),
       status: s.status,
