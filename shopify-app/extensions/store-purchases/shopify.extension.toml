@@ -1,10 +1,11 @@
-# "In-store purchases" page in customer accounts: Carbon POS sales for the
-# signed-in customer (online orders are already on Shopify's Orders page).
-# Calls rewards.shopcarbon.com/api/account/purchases with the session token.
+# "Purchases" page in customer accounts (Carbon Member Club, 2026-11-03): the
+# signed-in customer's online orders (Customer Account API, linking to Shopify's
+# order pages) and Carbon POS sales (rewards.shopcarbon.com/api/account/purchases
+# with the session token). The handle stays store-purchases so links keep working.
 api_version = "2026-07"
 
 [[extensions]]
-name = "In-store purchases"
+name = "Purchases"
 handle = "store-purchases"
 uid = "e6653ebc-92d4-2d73-0462-a206499084b28ec33083"
 type = "ui_extension"
