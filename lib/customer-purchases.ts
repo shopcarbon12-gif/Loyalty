@@ -62,16 +62,25 @@ export async function storePurchases(customerId: number, limit = 50): Promise<St
   }));
 }
 
-/** { "<order number id>": points } for the member's online orders. */
+/**
+ * { "<order number id>": points } for the member's online orders — what each
+ * order still counts for: the earn row minus any cancel/refund reversals
+ * (shopify:cancel:<gid>, shopify:refund:<gid>:<refund>; see
+ * reverseOnlineOrderPoints in lib/orders.ts). A cancelled order nets to 0.
+ */
 export async function onlinePoints(customerId: number): Promise<Record<string, number>> {
-  const r = await getPool().query<{ source_ref: string; points: string }>(
-    `SELECT source_ref, sum(delta_points)::text AS points
+  const r = await getPool().query<{ order_id: string; points: string }>(
+    `SELECT substring(source_ref FROM 'gid://shopify/Order/([0-9]+)') AS order_id,
+            sum(delta_points)::text AS points
        FROM loyalty_ledger
-      WHERE customer_id = $1 AND source = 'shopify' AND reason = 'sale' AND source_ref LIKE 'gid://shopify/Order/%'
-      GROUP BY source_ref`,
+      WHERE customer_id = $1 AND source = 'shopify'
+        AND (   (reason = 'sale'   AND source_ref LIKE 'gid://shopify/Order/%')
+             OR (reason = 'refund' AND (source_ref LIKE 'shopify:cancel:gid://shopify/Order/%'
+                                     OR source_ref LIKE 'shopify:refund:gid://shopify/Order/%')))
+      GROUP BY 1`,
     [customerId],
   );
   const out: Record<string, number> = {};
-  for (const row of r.rows) out[row.source_ref.split("/").pop()!] = Number(row.points);
+  for (const row of r.rows) if (row.order_id) out[row.order_id] = Math.max(0, Number(row.points));
   return out;
 }
