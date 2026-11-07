@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { verifyAppProxySignature } from "@/lib/shopify-hmac";
+import { isWholesaleCustomer } from "@/lib/wholesale";
 
 /**
  * GET /apps/loyalty/activity
@@ -19,6 +20,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ activity: [] });
   }
   const gid = `gid://shopify/Customer/${shopifyCustomerId}`;
+  if (await isWholesaleCustomer(gid)) return NextResponse.json({ activity: [], wholesale: true });
   const r = await getPool().query(
     `SELECT l.id, l.delta_points, l.reason, l.amount_basis, l.created_at
        FROM loyalty_ledger l

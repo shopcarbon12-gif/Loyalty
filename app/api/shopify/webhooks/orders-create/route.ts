@@ -63,6 +63,13 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
     return NextResponse.json({ ok: true, skipped: "pos_origin" });
   }
 
+  // Retail only (owner 2026-11-07): a wholesale (B2B) order — one placed for a
+  // company — earns no points and pays no referral. Order history is still
+  // kept (upsertShopifyOrder runs after this).
+  if (order.company?.id) {
+    return NextResponse.json({ ok: true, skipped: "wholesale" });
+  }
+
   // Reward codes issued from the customer account — mark them spent.
   await markCouponsUsed(
     (order.discount_codes ?? []).map((d) => d.code ?? ""),
@@ -132,6 +139,8 @@ async function earn(order: ShopifyOrder): Promise<NextResponse> {
 
 type ShopifyOrder = {
   admin_graphql_api_id: string;
+  /** Set on B2B orders (REST order payload). */
+  company?: { id?: number | string; location_id?: number | string } | null;
   source_name?: string;
   note_attributes?: Array<{ name?: string; value?: string }>;
   discount_codes?: Array<{ code?: string }>;

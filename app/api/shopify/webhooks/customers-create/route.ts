@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isWholesaleCustomer } from "@/lib/wholesale";
 import { withTransaction } from "@/lib/db";
 import { verifyWebhookHmac } from "@/lib/shopify-hmac";
 import { insertLedger } from "@/lib/loyalty";
@@ -36,6 +37,9 @@ export async function POST(req: Request) {
 
   const gid = c.admin_graphql_api_id;
   if (!gid) return NextResponse.json({ ok: true, skipped: "no_gid" });
+  // Retail only (owner 2026-11-07): a wholesale buyer (B2B company contact,
+  // e.g. created by the WMS Wholesale "Approve") is not a rewards member.
+  if (await isWholesaleCustomer(gid)) return NextResponse.json({ ok: true, skipped: "wholesale" });
 
   try {
     const result = await withTransaction(async (client) => {

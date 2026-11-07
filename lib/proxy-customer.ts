@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPool } from "./db";
 import { verifyAppProxySignature } from "./shopify-hmac";
+import { isWholesaleCustomer, WHOLESALE_MESSAGE } from "./wholesale";
 
 /**
  * Resolve the logged-in storefront customer on an app-proxy request
@@ -33,6 +34,10 @@ export async function proxyCustomer(
   }
   // Storefront sends the numeric id; we store the Admin GID.
   const gid = `gid://shopify/Customer/${id}`;
+  // Retail only: a wholesale (B2B) buyer has no rewards balance to show or spend.
+  if (await isWholesaleCustomer(gid)) {
+    return { ok: false, res: NextResponse.json({ error: "wholesale", message: WHOLESALE_MESSAGE }, { status: 403 }) };
+  }
   const r = await getPool().query<{ id: number; first_name: string | null }>(
     `SELECT id, first_name FROM pos_customers WHERE shopify_customer_gid = $1 ORDER BY id LIMIT 1`,
     [gid],

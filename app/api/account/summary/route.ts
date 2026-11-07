@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { isWholesaleCustomer, WHOLESALE_MESSAGE } from "@/lib/wholesale";
 import { corsJson, corsPreflight, verifyCustomerSession } from "@/lib/customer-session";
 import { memberSummary } from "@/lib/member-summary";
 
@@ -16,6 +17,9 @@ import { memberSummary } from "@/lib/member-summary";
 export async function GET(req: Request) {
   const session = await verifyCustomerSession(req);
   if (!session) return corsJson({ error: "unauthorized" }, 401);
+  if (await isWholesaleCustomer(session.customerGid)) {
+    return corsJson({ error: "wholesale", message: WHOLESALE_MESSAGE }, 403);
+  }
   const c = await getPool().query<{ id: number; first_name: string | null }>(
     `SELECT id, first_name FROM pos_customers WHERE shopify_customer_gid = $1 ORDER BY id LIMIT 1`,
     [session.customerGid],

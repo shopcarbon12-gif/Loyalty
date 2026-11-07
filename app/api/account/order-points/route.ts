@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { isWholesaleCustomer, WHOLESALE_MESSAGE } from "@/lib/wholesale";
 import { corsJson, corsPreflight, verifyCustomerSession } from "@/lib/customer-session";
 import { getBalance, pointsForEligible } from "@/lib/loyalty";
 import { getSettings } from "@/lib/settings";
@@ -16,6 +17,9 @@ import { shopifyGraphQL } from "@/lib/shopify";
 export async function GET(req: Request) {
   const session = await verifyCustomerSession(req);
   if (!session) return corsJson({ error: "unauthorized" }, 401);
+  if (await isWholesaleCustomer(session.customerGid)) {
+    return corsJson({ error: "wholesale", message: WHOLESALE_MESSAGE }, 403);
+  }
   // Thank-you pages expose an OrderIdentity gid with the same numeric id.
   const raw = new URL(req.url).searchParams.get("order") ?? "";
   const num = raw.match(/\/(\d+)$/)?.[1];

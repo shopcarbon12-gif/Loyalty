@@ -1,4 +1,5 @@
 import { getPool } from "@/lib/db";
+import { isWholesaleCustomer, WHOLESALE_MESSAGE } from "@/lib/wholesale";
 import { issueCoupon, RedeemError } from "@/lib/coupons";
 import { corsJson, corsPreflight, verifyCustomerSession } from "@/lib/customer-session";
 
@@ -11,6 +12,9 @@ import { corsJson, corsPreflight, verifyCustomerSession } from "@/lib/customer-s
 export async function POST(req: Request) {
   const session = await verifyCustomerSession(req);
   if (!session) return corsJson({ error: "unauthorized" }, 401);
+  if (await isWholesaleCustomer(session.customerGid)) {
+    return corsJson({ error: "wholesale", message: WHOLESALE_MESSAGE }, 403);
+  }
   const body = (await req.json().catch(() => ({}))) as { points?: unknown };
   const points = Number(body.points);
 
