@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ORLANDO_TIME_PATCH } from "@/lib/orlando-time";
 
@@ -7,9 +7,11 @@ import { ORLANDO_TIME_PATCH } from "@/lib/orlando-time";
 // eslint-disable-next-line no-new-func
 new Function(ORLANDO_TIME_PATCH)();
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// Inter is stored in the repo (latin, variable 400–700) so the build never
+// has to reach Google Fonts — a bad Google reply failed the 2026-11-07 deploy.
+const inter = localFont({
+  src: "./fonts/inter-latin-var.woff2",
+  weight: "400 700",
   display: "swap",
   variable: "--font-inter",
 });
