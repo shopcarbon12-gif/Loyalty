@@ -42,6 +42,7 @@ const PHONE_PURCHASES_SHOWN = 3;
 function RewardsPage() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
+  const [wholesale, setWholesale] = useState('');
   const [busy, setBusy] = useState(0);
   const [issued, setIssued] = useState(null);
   const [cancelling, setCancelling] = useState('');
@@ -55,7 +56,9 @@ function RewardsPage() {
         setError('');
       })
       .catch((e) =>
-        setError(
+        e.code === 'wholesale'
+          ? setWholesale(e.message || 'Carbon Rewards are for retail customers.')
+          : setError(
           e.code === 'unauthorized'
             ? "We couldn't load your rewards right now. Please sign out and back in, then try again."
             : e.message,
@@ -101,6 +104,22 @@ function RewardsPage() {
     } finally {
       setCancelling('');
     }
+  }
+
+  // Wholesale (B2B) buyers: rewards are retail-only (owner 2026-11-07) — a calm note, not an error.
+  if (wholesale) {
+    return (
+      <s-page heading="Rewards" subheading="Wholesale account">
+        <s-section>
+          <s-stack gap="base">
+            <s-paragraph>{wholesale}</s-paragraph>
+            <s-paragraph>Your wholesale orders, company details and terms are on your wholesale account page.</s-paragraph>
+            <s-button variant="primary" href="https://shopcarbon.com/pages/my-account?view=account">Wholesale account</s-button>
+            <s-link href="https://shopcarbon.com/">Shop wholesale</s-link>
+          </s-stack>
+        </s-section>
+      </s-page>
+    );
   }
 
   if (!summary && !error) {

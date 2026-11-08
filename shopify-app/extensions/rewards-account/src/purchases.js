@@ -65,7 +65,11 @@ export async function getStorePurchases() {
   if (shopify.extension.editor) return SAMPLE_STORE;
   const token = await shopify.sessionToken.get();
   const res = await fetch(`${BASE}/api/account/purchases`, {headers: {Authorization: `Bearer ${token}`}});
-  if (!res.ok) throw new Error('store');
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    // 'wholesale' = a B2B buyer (rewards are retail-only); callers hide the section.
+    throw Object.assign(new Error('store'), {code: body.error});
+  }
   return (await res.json()).purchases;
 }
 

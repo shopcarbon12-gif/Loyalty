@@ -32,7 +32,8 @@ function Purchases() {
       .catch(() => setOrders('error'));
     getStorePurchases()
       .then(setStore)
-      .catch(() => setStore('error'));
+      // Wholesale (B2B) buyers have no Carbon store / rewards purchases: hide that section.
+      .catch((e) => setStore(e && e.code === 'wholesale' ? 'wholesale' : 'error'));
   }, []);
 
   return (
@@ -61,6 +62,7 @@ function Purchases() {
         </s-stack>
       </s-section>
 
+      {store !== 'wholesale' && (
       <s-section heading="In-store purchases">
         <s-stack gap="base">
           {store === undefined && <s-spinner accessibilityLabel="Loading in-store purchases" />}
@@ -81,6 +83,7 @@ function Purchases() {
             ))}
         </s-stack>
       </s-section>
+      )}
     </s-page>
   );
 }
